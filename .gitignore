@@ -1,0 +1,53 @@
+# ============================================================
+# NeuroPulse .gitignore
+# ============================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.env
+venv/
+.venv/
+env/
+
+# Data (large EDF files — do not commit to git)
+ml/data/raw/
+ml/data/processed/
+
+# Trained Models (track with git-lfs or DVC instead)
+models/trained/*.pkl
+models/scalers/*.pkl
+
+# Reports / Figures
+reports/figures/*.png
+reports/figures/*.pdf
+reports/generated/
+
+# Node.js
+node_modules/
+.next/
+out/
+.cache/
+frontend/.next/
+frontend/node_modules/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+*.log

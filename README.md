@@ -6,6 +6,26 @@ NeuroPulse is an AI-powered, real-time medical dashboard designed for hospital E
 
 ---
 
+## 📸 Interface & Features
+
+### 1. Main Dashboard
+Provides a bird's-eye view of all monitored patients, displaying real-time seizure risk alerts and system health.
+![Main Dashboard](assets/dashboard.png)
+
+### 2. Detailed Patient View
+Deep dive into an individual patient's brain state, featuring a live EEG stream, a 3D brain map, and AI explainability via SHAP values.
+![Detailed Patient View](assets/patient_view.png)
+
+### 3. How It Works (Educational Notebook)
+A built-in educational guide explaining the science behind reading brainwaves and using AI to predict seizures.
+![How It Works](assets/how_it_works.png)
+
+### 4. Dataset Info
+Overview of the clinical data used to train the model, including feature engineering pipelines and class imbalance handling.
+![Dataset Info](assets/dataset.png)
+
+---
+
 ## 🚀 Quick Start (Running the Dashboard)
 
 If you have just copied this project to a new machine and want to run the live dashboard, follow these two steps.

@@ -124,4 +124,9 @@ The AI uses a **2-Level Stacking Ensemble** to achieve 99.3% accuracy and 2.4% f
 *   **Meta Model:** Logistic Regression
 *   **Features:** Non-linear dynamics (Sample Entropy, Higuchi Fractal Dimension), Spectral powers (Delta, Theta, Alpha, Beta, Gamma), Wavelet Transforms, and Hjorth parameters.
 
+### 🗄️ Pre-trained Model & Dataset
+The fully trained models and the processed dataset (approx. 4GB) are too large for GitHub and are hosted on **Hugging Face**. 
+*   **Model & Dataset Repository:** [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse)
+*   **Hugging Face Profile:** [JayF14](https://huggingface.co/JayF14)
+
 For a deep dive into the engineering, data processing, and algorithms used, please read the **`report.txt`** file included in the root directory.

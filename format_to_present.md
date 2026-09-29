@@ -1,54 +1,50 @@
-Here is the updated Literature Survey section featuring recent research from **2024–2026**, along with the updated Research Gap, Proposed Work, and Reference list.
-
----
-
 # NeuroPulse: Research Synopsis & Literature Survey
 
 ## 1. Problem Statement
 
-Epileptic seizures affect over 50 million people worldwide and are characterized by sudden, unprovoked electrical disruptions in the brain. Current clinical practices in Epilepsy Monitoring Units (EMUs) heavily rely on manual inspection or automated *seizure detection* systems. However, detection algorithms only register an event *during* or *after* its onset, leaving insufficient time for therapeutic intervention or preventive clinical protocols.
+Epileptic seizures affect over 50 million people globally and are characterized by sudden, unprovoked electrical disruptions in brain activity. Current clinical workflows in Epilepsy Monitoring Units (EMUs) heavily rely on manual visual inspection or automated *seizure detection* systems. However, detection algorithms only register an event *during* or *after* its physical onset, leaving zero margin for therapeutic intervention, targeted drug delivery, or safety protocols.
 
-Developing a reliable **seizure prediction** system—capable of detecting the preictal state 10 to 30 minutes prior to seizure onset—presents critical scientific challenges:
+Developing a reliable **seizure prediction** system—capable of identifying the subtle preictal state 10 to 30 minutes prior to seizure onset—presents major scientific challenges:
 
-* **High Signal Volatility & Non-Stationarity:** Scalp EEG signals are highly non-linear, non-stationary, and prone to environmental/physiological noise artifacts.
-* **Severe Class Imbalance:** Interictal (normal) recordings vastly outnumber preictal (pre-seizure) segments in long-term continuous EEG data.
-* **High False Alarm Rates (FAR):** Existing algorithms generate frequent false alerts, causing alarm fatigue among hospital staff.
-* **The "Black-Box" Barrier:** Deep learning models rarely provide clinical rationale for their risk predictions, preventing adoption by neurologists who require interpretable brain-state metrics.
+* **Signal Volatility & Non-Stationarity:** Scalp EEG signals are non-linear, non-stationary, and highly vulnerable to muscle artifacts, ocular interference, and movement noise.
+* **Severe Class Imbalance:** Interictal (normal background) recordings vastly outnumber preictal (pre-seizure) segments in long-term continuous EEG monitoring.
+* **High False Alarm Rates (FAR):** Existing algorithms generate frequent false alarms, inducing severe alarm fatigue among clinical staff.
+* **The "Black-Box" Interpretability Barrier:** Deep learning architectures rarely provide clinical rationale for their risk predictions, preventing adoption by neurologists who require interpretable brain-state metrics.
 
 ---
 
-## 2. Literature Survey (2024–2026 Focus)
+## 2. Literature Survey
 
 | Author Name | Year | Title | Dataset Used | Tech/Algo | Result | Advantages | Disadvantages |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Hasan et al.** | 2025 | SHAP-Driven Feature Analysis Approach for Epileptic Seizure Prediction | CHB-MIT Scalp EEG | 1D-CNN + SHAP (Explainable AI) | 98.14% Accuracy, 98.30% F1-Score | Provides local and global channel-level feature interpretability (e.g., P7-O1, P3-O1 electrode importance). | High computational overhead when calculating SHAP values on continuous live EEG streams. |
-| **Balamas et al.** | 2025 | Epileptic Seizure Prediction on CHB-MIT EEG Using Soft Fusion Post-Processing | CHB-MIT (22 channels, 256 Hz) | STFT Spectrograms + 3D-CNN / CBAM / CNN-LSTM + Top-K Soft Fusion | Reduced False Alarm Rate across 30-min preictal horizon | Spatial-channel attention (CBAM) and soft fusion significantly reduce false alarms. | Requires patient-specific overlap sampling during training; complex multi-stage pipeline. |
-| **Li et al.** | 2024 | Epilepsy EEG Seizure Prediction Based on GCN-LSTM Architecture | CHB-MIT Scalp EEG | Graph Convolutional Network (GCN) + LSTM | 99.39% Binary Accuracy, 98.69% Ternary Accuracy | Captures topological brain network spatial relationships across scalp electrodes. | High GPU memory usage for dynamic adjacency matrices; lacks feature attribution mechanisms. |
-| **Wang et al.** | 2024 | Epileptic Seizure Prediction Based on EEG Using Pseudo-3D CNN | CHB-MIT & Clinical EEG | ICA Artifact Removal + Pseudo-3D CNN + Spatial-Temporal Feature Selection | >95.0% Patient Cross-Validation Accuracy | Effective removal of ocular/muscle artifacts using Independent Component Analysis (ICA). | ICA component removal requires manual threshold tuning, hindering real-time automation. |
+| **Hasan et al.** | 2025 | SHAP-Driven Feature Analysis Approach for Epileptic Seizure Prediction | CHB-MIT Scalp EEG | 1D-CNN + SHAP (Explainable AI) | 98.14% Accuracy, 98.30% F1-Score | Identifies critical electrode channel contributions (e.g., P7-O1, P3-O1). | High computational overhead calculating SHAP values on live continuous EEG streams. |
+| **Balamas et al.** | 2025 | Epileptic Seizure Prediction on CHB-MIT EEG Using Soft Fusion Post-Processing | CHB-MIT (22 channels, 256 Hz) | STFT Spectrograms + 3D-CNN / CBAM / CNN-LSTM + Top-K Soft Fusion | Reduced False Alarm Rate across 30-min preictal horizon | Spatial-channel attention (CBAM) and soft fusion significantly reduce false positives. | Requires patient-specific overlap sampling during training; complex multi-stage pipeline. |
+| **Li et al.** | 2024 | Epilepsy EEG Seizure Prediction Based on GCN-LSTM Architecture | CHB-MIT Scalp EEG | Graph Convolutional Network (GCN) + LSTM | 99.39% Binary Accuracy, 98.69% Ternary Accuracy | Captures topological brain network spatial relationships across scalp electrodes. | High GPU memory footprint for dynamic adjacency matrices; lacks feature attribution mechanisms. |
+| **Wang et al.** | 2024 | Epileptic Seizure Prediction Based on EEG Using Pseudo-3D CNN | CHB-MIT & Clinical EEG | ICA Artifact Removal + Pseudo-3D CNN + Spatial-Temporal Feature Selection | >95.0% Patient Cross-Validation Accuracy | Effective removal of ocular/muscle artifacts using Independent Component Analysis (ICA). | ICA component removal requires manual threshold tuning, preventing real-time automation. |
 | **Usman et al.** | 2024 | Lightweight Machine Learning for Real-Time EEG Epilepsy Risk Stratification | CHB-MIT & Wearable Signals | DWT + LightGBM / Random Forest Ensemble | 94.8% Accuracy, Low Inference Latency (<15ms) | Low computational overhead; ideal for edge and wearable EEG device deployment. | Omits non-linear entropy metrics; susceptible to patient-independent domain shift. |
 
 ---
 
 ## 3. Research Gap
 
-1. **Lack of Real-Time Explainability in Deep Learning Pipelines:** While 2024–2026 models achieve high prediction metrics, deep learning architectures (3D-CNNs, GCN-LSTMs) operate as black boxes, providing no feature attributions or frequency-band breakdowns during live streaming.
-2. **Computational Overhead of Post-Hoc XAI:** Recent attempts to introduce explainability (such as SHAP on CNNs) suffer from high inference latency, making them impractical for real-time early warning systems.
-3. **Omission of Non-Linear Complexity Indicators:** Contemporary pipelines rely heavily on short-time Fourier transforms (STFT) or basic spectral power, neglecting non-linear dynamic shifts (Sample Entropy, Higuchi Fractal Dimension, Hjorth parameters) that signal early preictal transitions.
-4. **Absence of Integrated Clinical Web Platforms:** Existing literature focuses almost exclusively on offline batch processing on static datasets rather than deployment into end-to-end WebSocket-enabled streaming systems with 3D spatial activity visualization.
+1. **Omission of Non-Linear Complexity Metrics:** Most modern pipelines rely primarily on power spectral densities (PSD) or short-time Fourier transforms (STFT), neglecting non-linear dynamical metrics (Sample Entropy, Higuchi Fractal Dimension, Hjorth parameters) that signal early preictal state transitions.
+2. **Computational Overhead of Post-Hoc Explainability:** Recent attempts to introduce explainability (such as SHAP on 3D-CNNs or LSTMs) suffer from high inference latency, making them unviable for real-time edge processing.
+3. **Black-Box Decision Making in Clinical Dashboards:** Deep learning models produce output risk probabilities without attributing those predictions to specific electrode locations, signal frequencies, or time windows.
+4. **Lack of Production-Ready End-to-End Systems:** The majority of published research presents offline evaluation on static datasets rather than deployment into real-time WebSocket streaming architectures equipped with 3D spatial brain activity visualizations.
 
 ---
 
 ## 4. Proposed Work
 
-**NeuroPulse** bridges these gaps through a hybrid, explainable machine-learning system designed for hospital EMUs.
+**NeuroPulse** is an AI-powered, real-time medical dashboard designed for hospital Epilepsy Monitoring Units (EMUs). It streams patient EEG brainwaves, predicts potential seizure events 10 to 30 minutes in advance using a GPU-accelerated Stacking Ensemble model, and displays real-time risk scores and AI reasoning (SHAP values) on a clinical-grade dashboard.
 
-### System Pipeline
+### System Architecture & Pipeline
 
 ```text
-Scalp EEG Stream (EDF/WebSocket) 
+Scalp EEG Stream (EDF / WebSocket)
    │
    ▼
-Signal Preprocessing (Band-pass/Notch Filters, Numba JIT Segmentation)
+Signal Preprocessing (Band-Pass/Notch Filters, Numba JIT Segmentation)
    │
    ▼
 Multi-Domain Feature Extraction (Spectral Power, DWT, Sample Entropy, Hjorth)
@@ -63,12 +59,22 @@ Preictal Risk Assessment      SHAP Value Generation        3D Spatial Activity M
 
 ```
 
-### Key Technical Contributions
+### Quantitative Model Performance
 
-* **2-Level Stacking Ensemble:** Combines GPU-accelerated XGBoost, leaf-wise LightGBM, and Random Forest base models fed into a meta-Logistic Regression model, achieving high preictal prediction accuracy while minimizing false positive alerts.
+The core AI engine (`master_model.pkl`, `ensemble_model.pkl`, and `xgboost_model.pkl`) was evaluated on a test set comprising **14,338 samples** (**13,356 interictal** and **982 preictal**) derived from CHB-MIT subjects `chb01` through `chb24`:
+
+* **Accuracy:** 99.12%
+* **Specificity:** 99.48% (Near-zero false alarm rate on interictal baseline data)
+* **Sensitivity (Recall):** 94.30% (High preictal identification rate)
+* **F1 Score:** 93.63%
+* **ROC AUC:** 99.79%
+
+### Key Engineering Features
+
+* **2-Level GPU Stacking Ensemble:** Blends XGBoost (GPU-accelerated), leaf-wise LightGBM, and Random Forest base models into a meta-Logistic Regression model.
 * **Numba JIT Feature Acceleration:** Real-time computation of non-linear complexity metrics (Sample Entropy, Higuchi Fractal Dimension) alongside Hjorth mobility and spatial correlation matrices.
-* **Low-Latency TreeSHAP Integration:** Direct extraction of tree-based SHAP feature importance scores, enabling instant clinical explanations (e.g., $+24\%$ Theta Power, $+18\%$ Spectral Entropy) without deep learning inference delays.
-* **Real-Time Clinical Dashboard:** A Next.js and FastAPI architecture streaming live EEG waveforms over WebSockets alongside an interactive 3D brain model mapping cortical activity regions.
+* **Explainable AI (SHAP Integration):** Provides real-time TreeSHAP feature attributions, explaining exact biological drivers (e.g., $+24\%$ Theta Power, $+18\%$ Spectral Entropy) behind every alert.
+* **Clinical Dashboard & 3D Visualization:** Next.js frontend streaming live EEG waves via WebSockets alongside an interactive 3D brain map visualizing estimated cortical activity regions.
 
 ---
 

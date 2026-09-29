@@ -6,7 +6,7 @@ NeuroPulse is an AI-powered, real-time medical dashboard designed for hospital E
 
 ---
 
-## 📸 Interface & Features
+## Interface & Features
 
 ### 1. Main Dashboard
 Provides a bird's-eye view of all monitored patients, displaying real-time seizure risk alerts and system health.
@@ -26,7 +26,7 @@ Overview of the clinical data used to train the model, including feature enginee
 
 ---
 
-## 🚀 Quick Start (Running the Dashboard)
+## Quick Start (Running the Dashboard)
 
 If you have just copied this project to a new machine and want to run the live dashboard, follow these two steps.
 
@@ -64,11 +64,11 @@ npm run dev
 ```
 *The frontend will run on `http://localhost:3000`*
 
-👉 **Open your browser and navigate to `http://localhost:3000` to view the live dashboard.**
+**Open your browser and navigate to `http://localhost:3000` to view the live dashboard.**
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```text
 Neuro_Pulse/
@@ -105,7 +105,7 @@ Neuro_Pulse/
 
 ---
 
-## 🧠 Retraining the Model (Advanced)
+## Retraining the Model (Advanced)
 
 If you ever acquire the original 40GB raw `.edf` EEG files and want to retrain the model from scratch:
 
@@ -118,13 +118,13 @@ If you ever acquire the original 40GB raw `.edf` EEG files and want to retrain t
 
 ---
 
-## 🔬 AI Model Details
+## AI Model Details
 The AI uses a **2-Level Stacking Ensemble** to achieve 99.3% accuracy and 2.4% false alarm rates on clinical data:
 *   **Base Models:** XGBoost (GPU), LightGBM (Leaf-wise), Random Forest
 *   **Meta Model:** Logistic Regression
 *   **Features:** Non-linear dynamics (Sample Entropy, Higuchi Fractal Dimension), Spectral powers (Delta, Theta, Alpha, Beta, Gamma), Wavelet Transforms, and Hjorth parameters.
 
-### 🗄️ Pre-trained Model & Dataset
+### Pre-trained Model & Dataset
 The fully trained models and the processed dataset (approx. 4GB) are too large for GitHub and are hosted on **Hugging Face**. 
 *   **Model & Dataset Repository:** [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse)
 *   **Hugging Face Profile:** [JayF14](https://huggingface.co/JayF14)

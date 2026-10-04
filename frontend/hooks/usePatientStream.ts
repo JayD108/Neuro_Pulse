@@ -8,13 +8,16 @@ export interface TelemetryFrame {
   timestamp: number;
   patient_id: string;
   window_idx: number;
+  window_start: number;
+  window_end: number;
   risk_score: number;
   risk_score_raw: number;   // unsmoothed, for charts
+  soft_score: number;
   label_pred: number;
   label_true: number | null;
   alert: boolean;
   band_power: Record<string, number>;
-  top_shap: Array<{ feature: string; shap_value: number }>;
+  top_features: Array<{ name: string; value: number }>;  // V1: replaces kan_splines
   channel_risk: Record<string, number>;
 }
 
@@ -62,7 +65,7 @@ export function usePatientStream(
   const mountedRef   = useRef(true);
 
   // Smoothing state (not React state — no re-render cost)
-  const emaRef          = useRef<number | null>(null);
+  const emaRef          = useRef<number[] | null>(null);
   const categoryBuf     = useRef<Array<"clear" | "watch" | "alert">>([]);
   const confirmedCatRef = useRef<"clear" | "watch" | "alert">("clear");
 
@@ -90,13 +93,25 @@ export function usePatientStream(
         const raw = JSON.parse(event.data as string);
         const rawScore: number = raw.risk_score;
 
-        // --- EMA smoothing ---
-        if (emaRef.current === null) {
-          emaRef.current = rawScore;
-        } else {
-          emaRef.current = emaAlpha * rawScore + (1 - emaAlpha) * emaRef.current;
+        // --- Top-K Soft Fusion (Publication V2) ---
+        // 5-minute rolling buffer = 10 windows of 30s. We take the Top 8 highest probabilities and average them.
+        if (!emaRef.current) {
+          emaRef.current = []; // We will repurpose emaRef to hold the buffer
         }
-        const smoothed = emaRef.current;
+        
+        const buffer = emaRef.current as number[];
+        buffer.push(rawScore);
+        if (buffer.length > 10) {
+           buffer.shift();
+        }
+        
+        // Top-K Soft Mean (K=8)
+        let smoothed = rawScore;
+        if (buffer.length >= 8) {
+           const sorted = [...buffer].sort((a, b) => b - a);
+           const topK = sorted.slice(0, 8);
+           smoothed = topK.reduce((a, b) => a + b, 0) / topK.length;
+        }
 
         // --- Persistence filter on alert category ---
         const newCat = getRiskCategory(smoothed);

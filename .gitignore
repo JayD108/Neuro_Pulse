@@ -19,10 +19,17 @@ env/
 # Data (large EDF files — do not commit to git)
 ml/data/raw/
 ml/data/processed/
+V1_Classical_ML/ml/data/raw/
+V1_Classical_ML/ml/data/processed/
+NeuroPulse_Raw_Data/
 
 # Trained Models (track with git-lfs or DVC instead)
 models/trained/*.pkl
 models/scalers/*.pkl
+V1_Classical_ML/models/trained/*.pkl
+V1_Classical_ML/models/scalers/*.pkl
+V1_Classical_ML/models/trained/*.skops
+V1_Classical_ML/models/autoencoder/*.pt
 
 # Reports / Figures
 reports/figures/*.png

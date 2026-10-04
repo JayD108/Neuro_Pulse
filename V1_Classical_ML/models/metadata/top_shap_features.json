@@ -1,0 +1,52 @@
+[
+  {
+    "rank": 1,
+    "feature": "FZ-CZ_Gamma",
+    "mean_abs_shap": 1.1746182441711426
+  },
+  {
+    "rank": 2,
+    "feature": "CZ-PZ_Gamma",
+    "mean_abs_shap": 0.5860167741775513
+  },
+  {
+    "rank": 3,
+    "feature": "T7-P7_zero_crossings",
+    "mean_abs_shap": 0.5519578456878662
+  },
+  {
+    "rank": 4,
+    "feature": "P4-O2_hjorth_mobility",
+    "mean_abs_shap": 0.5312427282333374
+  },
+  {
+    "rank": 5,
+    "feature": "C3-P3_Gamma",
+    "mean_abs_shap": 0.49555423855781555
+  },
+  {
+    "rank": 6,
+    "feature": "P4-O2_Gamma",
+    "mean_abs_shap": 0.4793277978897095
+  },
+  {
+    "rank": 7,
+    "feature": "P4-O2_zero_crossings",
+    "mean_abs_shap": 0.40041980147361755
+  },
+  {
+    "rank": 8,
+    "feature": "FP2-F4_zero_crossings",
+    "mean_abs_shap": 0.3317560851573944
+  },
+  {
+    "rank": 9,
+    "feature": "FZ-CZ_hjorth_complexity",
+    "mean_abs_shap": 0.24733613431453705
+  },
+  {
+    "rank": 10,
+    "feature": "FP2-F8_Alpha",
+    "mean_abs_shap": 0.21909447014331818
+  }
+]

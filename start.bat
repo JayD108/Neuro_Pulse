@@ -1,14 +1,17 @@
 @echo off
 title NeuroPulse Launcher
 echo ===================================================
-powershell -Command "Write-Host '  _   _                     ____        _          ' -ForegroundColor Green"
-powershell -Command "Write-Host ' | \ | |                   |  _ \      | |         ' -ForegroundColor Green"
-powershell -Command "Write-Host ' |  \| | ___ _   _ _ __ ___| |_) |   _ | |___  ___ ' -ForegroundColor Green"
-powershell -Command "Write-Host ' | . ` |/ _ \ | | | ''__/ _ \  __/ | | || / __|/ _ \ ' -ForegroundColor Green"
-powershell -Command "Write-Host ' | |\  |  __/ |_| | | | (_) | |  | |_| || \__ \  __/' -ForegroundColor Green"
-powershell -Command "Write-Host ' |_| \_|\___|\__,_|_|  \___/|_|   \__,_||_|___/\___|' -ForegroundColor Green"
-echo.
-echo        Starting Medical Dashboard
+powershell -Command "Write-Host ' ____  _             _   _             ' -ForegroundColor Green"
+powershell -Command "Write-Host '/ ___|| |_ __ _ _ __| |_(_)_ __   __ _ ' -ForegroundColor Green"
+powershell -Command "Write-Host '\___ \| __/ _` | ''__| __| | ''_ \ / _` |' -ForegroundColor Green"
+powershell -Command "Write-Host ' ___) | || (_| | |  | |_| | | | | (_| |' -ForegroundColor Green"
+powershell -Command "Write-Host '|____/ \__\__,_|_|   \__|_|_| |_|\__, |' -ForegroundColor Green"
+powershell -Command "Write-Host '                                 |___/ ' -ForegroundColor Green"
+powershell -Command "Write-Host ' _   _                      ____        _          ' -ForegroundColor Green"
+powershell -Command "Write-Host '| \ | | ___ _   _ _ __ ___ |  _ \ _   _| |___  ___ ' -ForegroundColor Green"
+powershell -Command "Write-Host '|  \| |/ _ \ | | | ''__/ _ \| |_) | | | | / __|/ _ \ ' -ForegroundColor Green"
+powershell -Command "Write-Host '| |\  |  __/ |_| | | | (_) |  __/| |_| | \__ \  __/' -ForegroundColor Green"
+powershell -Command "Write-Host '|_| \_|\___|\__,_|_|  \___/|_|    \__,_|_|___/\___|' -ForegroundColor Green"
 echo ===================================================
 echo.
 

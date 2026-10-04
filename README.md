@@ -1,8 +1,9 @@
-# NeuroPulse
+# APALA
 
-**Real-Time Seizure Prediction & EEG Monitoring System**
+**Patient-Independent Pre-Ictal EEG Detection System**
+*Named in remembrance of Apālā Ātreyī — a female figure traditionally associated with Ṛgveda 8.91, whose story is one of confronting affliction, exercising agency, and seeking transformation.*
 
-NeuroPulse is an AI-powered, real-time medical dashboard designed for hospital Epilepsy Monitoring Units (EMUs). It streams patient EEG brainwaves, predicts potential seizure events up to 30 minutes in advance using a GPU-accelerated Stacking Ensemble model, and displays real-time risk scores and AI reasoning (SHAP values) on a clinical-grade dashboard.
+APALA is an AI-powered, real-time medical system designed for hospital Epilepsy Monitoring Units (EMUs). It streams patient EEG brainwaves, predicts potential seizure events up to 30 minutes in advance using a GPU-accelerated deep learning model (NeuroKAN architecture), and displays real-time risk scores on a clinical-grade dashboard.
 
 ---
 

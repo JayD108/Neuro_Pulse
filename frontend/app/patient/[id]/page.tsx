@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePatientStream } from "@/hooks/usePatientStream";
 import EEGCanvas from "@/components/EEGCanvas";
-import SHAPChart from "@/components/SHAPChart";
+import KANChart from "@/components/KANChart";
 import RiskHorizon from "@/components/RiskHorizon";
 import PatientSummaryBanner from "@/components/PatientSummaryBanner";
 import { riskColor, ALERT_THRESHOLD, API_BASE_URL } from "@/lib/constants";
@@ -195,14 +195,14 @@ export default function PatientPage({
           </div>
         </div>
 
-        {/* Bottom-Left: SHAP */}
+        {/* Bottom-Left: KAN Spline Activations */}
         <div className="glass-panel hover-lift" style={{ ...PANEL_STYLE }}>
           <PanelHeader
-            title="What the AI Is Focusing On"
-            subtitle="Red bars = signals pushing toward a seizure warning. Teal bars = signals keeping you in the clear"
+            title="KAN Spline Coefficient Activations"
+            subtitle="Native interpretability without black-box SHAP. Red/Purple bars = highly activated B-splines pushing predictions"
           />
           <div style={{ flex: 1, minHeight: 0 }}>
-            <SHAPChart features={frame?.top_shap ?? []} />
+            <KANChart features={frame?.top_features ?? []} />
           </div>
         </div>
 

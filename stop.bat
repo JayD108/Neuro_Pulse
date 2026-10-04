@@ -1,14 +1,17 @@
 @echo off
 title NeuroPulse Shutdown
 echo ===================================================
-powershell -Command "Write-Host '  _   _                     ____        _          ' -ForegroundColor Green"
-powershell -Command "Write-Host ' | \ | |                   |  _ \      | |         ' -ForegroundColor Green"
-powershell -Command "Write-Host ' |  \| | ___ _   _ _ __ ___| |_) |   _ | |___  ___ ' -ForegroundColor Green"
-powershell -Command "Write-Host ' | . ` |/ _ \ | | | ''__/ _ \  __/ | | || / __|/ _ \ ' -ForegroundColor Green"
-powershell -Command "Write-Host ' | |\  |  __/ |_| | | | (_) | |  | |_| || \__ \  __/' -ForegroundColor Green"
-powershell -Command "Write-Host ' |_| \_|\___|\__,_|_|  \___/|_|   \__,_||_|___/\___|' -ForegroundColor Green"
-echo.
-echo        Stopping Medical Dashboard
+powershell -Command "Write-Host ' ____                  ____ _           _             ' -ForegroundColor Green"
+powershell -Command "Write-Host '| __ ) _   _  ___     / ___| | ___  ___(_)_ __   __ _ ' -ForegroundColor Green"
+powershell -Command "Write-Host '|  _ \| | | |/ _ \   | |   | |/ _ \/ __| | ''_ \ / _` |' -ForegroundColor Green"
+powershell -Command "Write-Host '| |_) | |_| |  __/_  | |___| | (_) \__ \ | | | | (_| |' -ForegroundColor Green"
+powershell -Command "Write-Host '|____/ \__, |\___( )  \____|_|\___/|___/_|_| |_|\__, |' -ForegroundColor Green"
+powershell -Command "Write-Host '       |___/     |/                             |___/ ' -ForegroundColor Green"
+powershell -Command "Write-Host ' _   _                      ____        _          ' -ForegroundColor Green"
+powershell -Command "Write-Host '| \ | | ___ _   _ _ __ ___ |  _ \ _   _| |___  ___ ' -ForegroundColor Green"
+powershell -Command "Write-Host '|  \| |/ _ \ | | | ''__/ _ \| |_) | | | | / __|/ _ \ ' -ForegroundColor Green"
+powershell -Command "Write-Host '| |\  |  __/ |_| | | | (_) |  __/| |_| | \__ \  __/' -ForegroundColor Green"
+powershell -Command "Write-Host '|_| \_|\___|\__,_|_|  \___/|_|    \__,_|_|___/\___|' -ForegroundColor Green"
 echo ===================================================
 echo.
 

@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 class HealthResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     status: str
     model_loaded: bool
     version: str
@@ -24,12 +26,14 @@ class HealthResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class PatientInfo(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     patient_id:   str
     n_windows:    int
     n_preictal:   int
     n_interictal: int
     model_loaded: bool
-    model_type:   str = "XGBoost + LightGBM + RF Ensemble"
+    model_type:   str = "XGBoost (V1)"
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +44,7 @@ class TopFeature(BaseModel):
     """A single high-magnitude feature for dashboard display."""
     name:  str   = Field(..., description="Feature name (e.g. 'FP1-F7_gamma_relative')")
     value: float = Field(..., description="Raw feature value for this window")
+    score: float = Field(0.0, description="Feature importance x |z-score| for this window")
 
 
 # ---------------------------------------------------------------------------
@@ -65,11 +70,11 @@ class TelemetryFrame(BaseModel):
     window_idx:   int
     window_start: float
     window_end:   float
-    risk_score:   float                         # Raw ensemble probability
+    risk_score:   float                         # Raw model probability
     soft_score:   float = 0.0                   # Same as risk_score in V1 (no fusion)
     label_pred:   int
     label_true:   Optional[int] = None          # Ground truth label (for dashboard debug)
-    alert:        bool = False                   # True when risk_score >= 0.5
+    alert:        bool = False                   # True when risk_score >= 0.6
     top_features: List[Dict[str, Any]]  = Field(default_factory=list)
     channel_risk: Dict[str, float]      = Field(default_factory=dict)
     band_power:   Dict[str, float]      = Field(default_factory=dict)

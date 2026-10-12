@@ -1,20 +1,20 @@
 """
 NeuroPulse — Classical ML Inference Engine (V1)
 =================================================
-Loads the trained ManualStackingEnsemble (XGBoost + LightGBM + RandomForest +
-Logistic Regression meta-learner) from master_model.pkl and provides
-real-time risk predictions from pre-extracted CSV feature vectors.
+Loads the trained V1 XGBoost model (xgboost_model.pkl, 180 features) and
+provides real-time risk predictions from pre-extracted CSV feature vectors.
 
 Output schema per prediction:
     risk_score    : float [0.0–1.0] — preictal probability
     label_pred    : int   [0=Interictal, 1=Preictal]
     channel_risk  : Dict[channel_name -> float] — per-channel risk proxy
     band_power    : Dict[band_name -> float]    — average Welch band power
-    top_features  : List[{name, value}]         — top contributing features
+    top_features  : List[{name, value, score}]  — top contributing features
 """
 from __future__ import annotations
 
 import os
+import re
 import sys
 import json
 import pickle
@@ -88,14 +88,15 @@ _NAMES_PATH   = os.path.join(_PROJECT_ROOT, "V1_Classical_ML", "models", "metada
 
 RISK_THRESHOLD = 0.50
 
-# Welch band power feature name fragments for band extraction
-_BAND_KEYS = {
-    "Delta": "delta",
-    "Theta": "theta",
-    "Alpha": "alpha",
-    "Beta":  "beta",
-    "Gamma": "gamma",
-}
+# Clinical bands shown on the dashboard
+_BAND_KEYS = ("Delta", "Theta", "Alpha", "Beta", "Gamma")
+
+# "{channel}_{Band}_relpow", e.g. "FP1-F7_Delta_relpow" (hyphenated channel names only)
+_BAND_RELPOW_RE = re.compile(r"^[A-Z0-9]+-[A-Z0-9-]+_(Delta|Theta|Alpha|Beta|Gamma)_relpow$")
+
+# Older names used when the XGBoost model was trained: "FP1-F7_Delta" is now
+# "FP1-F7_Delta_power" in the processed CSVs.
+_FEATURE_ALIASES = ("_power",)
 
 # Bipolar channel prefixes for per-channel risk proxy
 _CHANNEL_PREFIXES = [
@@ -109,20 +110,21 @@ _CHANNEL_PREFIXES = [
 
 class ClassicalMLInferenceEngine:
     """
-    Singleton inference engine for the V1 ManualStackingEnsemble.
+    Singleton inference engine for the V1 XGBoost model.
 
     Handles:
     - Model + scaler + feature-name loading from disk
-    - Safe feature alignment (zero-fills any missing columns)
+    - Feature alignment, including older feature names (see _FEATURE_ALIASES)
     - Inf/NaN defense (mirrors the training pipeline)
-    - Band power and channel risk extraction from feature vector
-    - Top-feature extraction for dashboard display
+    - Band power, per-channel risk and top-feature extraction for the dashboard
     """
 
     def __init__(self) -> None:
         self._model        = None
         self._scaler       = None
         self._feature_cols: List[str] = []
+        self._importances: Optional[np.ndarray] = None
+        self._resolved: Dict[tuple, List[Optional[str]]] = {}
         self._ready        = False
         self._load()
 
@@ -136,7 +138,8 @@ class ClassicalMLInferenceEngine:
                    if not os.path.exists(p)]
         if missing:
             print(f"[InferenceEngine] WARNING: Missing artifacts: {missing}")
-            print("[InferenceEngine] Run 'python -m ml.training.train_ensemble --split-validation' first.")
+            print("[InferenceEngine] Download them from https://huggingface.co/JayF14/Neuro_Pulse "
+                  "into V1_Classical_ML/models/ (see README).")
             self._ready = False
             return
 
@@ -148,6 +151,14 @@ class ClassicalMLInferenceEngine:
             with open(_NAMES_PATH) as f:
                 self._feature_cols = json.load(f)
 
+            imp = getattr(self._model, "feature_importances_", None)
+            if imp is not None and len(imp) == len(self._feature_cols):
+                imp = np.asarray(imp, dtype=np.float64)
+                self._importances = imp / (imp.sum() or 1.0)
+            else:
+                self._importances = None
+
+            self._resolved = {}
             self._ready = True
             print(f"[InferenceEngine] V1 Classical ML model loaded.")
             print(f"[InferenceEngine] Features: {len(self._feature_cols)}")
@@ -162,6 +173,50 @@ class ClassicalMLInferenceEngine:
 
     def is_ready(self) -> bool:
         return self._ready
+
+    # ------------------------------------------------------------------
+    # Feature name resolution
+    # ------------------------------------------------------------------
+
+    def _resolve(self, available) -> List[Optional[str]]:
+        """
+        Map each model feature to a column that exists in the data.
+
+        The XGBoost model was trained when Welch band powers were named
+        "{channel}_{Band}" (e.g. "FP1-F7_Delta"). The current feature
+        extractor names them "{channel}_{Band}_power". Without this mapping
+        half of the model's inputs would silently be zero.
+        """
+        available = set(available)
+        key = tuple(sorted(available))
+        cached = self._resolved.get(key)
+        if cached is not None:
+            return cached
+
+        resolved: List[Optional[str]] = []
+        for col in self._feature_cols:
+            if col in available:
+                resolved.append(col)
+                continue
+            for suffix in _FEATURE_ALIASES:
+                if col + suffix in available:
+                    resolved.append(col + suffix)
+                    break
+            else:
+                resolved.append(None)
+
+        n_missing = sum(r is None for r in resolved)
+        if n_missing:
+            print(f"[InferenceEngine] WARNING: {n_missing}/{len(resolved)} model features "
+                  f"not found in the data; they will be filled with 0.")
+        self._resolved = {key: resolved}
+        return resolved
+
+    def required_columns(self, available) -> List[str]:
+        """Columns of a feature CSV that inference and the dashboard need."""
+        needed = {c for c in self._resolve(available) if c} if self._ready else set()
+        needed.update(c for c in available if _BAND_RELPOW_RE.match(c))
+        return [c for c in available if c in needed]
 
     # ------------------------------------------------------------------
     # Safe Scaling
@@ -179,13 +234,14 @@ class ClassicalMLInferenceEngine:
 
     def _align_features(self, feature_dict: Dict[str, float]) -> np.ndarray:
         """
-        Align an arbitrary feature dictionary to the model's expected feature
-        column order. Missing features are filled with 0.0.
+        Align a feature dictionary to the model's expected column order.
+        Features that cannot be found are filled with 0.0.
         """
+        resolved = self._resolve(feature_dict.keys())
         row = np.zeros(len(self._feature_cols), dtype=np.float32)
-        for i, col in enumerate(self._feature_cols):
-            row[i] = feature_dict.get(col, 0.0)
-        # Inf/NaN defense
+        for i, col in enumerate(resolved):
+            if col is not None:
+                row[i] = feature_dict[col]
         row = np.nan_to_num(row, nan=0.0, posinf=0.0, neginf=0.0)
         return row.reshape(1, -1)
 
@@ -197,40 +253,39 @@ class ClassicalMLInferenceEngine:
         self, feature_dict: Dict[str, float]
     ) -> Dict[str, float]:
         """
-        Average the Welch PSD power across all channels for each clinical band.
-        Feature names follow the pattern: {CHANNEL}_{BandName}
-        e.g. FP1-F7_Delta, FP1-F7_Theta, ...
+        Relative power of each clinical band, averaged over channels.
+        Uses "{channel}_{Band}_relpow" columns, so the five values are
+        fractions of total power (comparable across patients).
         """
-        band_power: Dict[str, float] = {}
-        for band_name, key in _BAND_KEYS.items():
-            # key is lowercase (e.g. "delta"), feature names use title case (e.g. "_Delta")
-            vals = [
-                v for k, v in feature_dict.items()
-                if key in k.lower() and np.isfinite(v)
-            ]
-            band_power[band_name] = float(np.mean(vals)) if vals else 0.0
-        return band_power
+        sums = {b: 0.0 for b in _BAND_KEYS}
+        counts = {b: 0 for b in _BAND_KEYS}
+        for k, v in feature_dict.items():
+            m = _BAND_RELPOW_RE.match(k)
+            if m and np.isfinite(v):
+                sums[m.group(1)] += v
+                counts[m.group(1)] += 1
+        return {b: (sums[b] / counts[b] if counts[b] else 0.0) for b in _BAND_KEYS}
 
     # ------------------------------------------------------------------
     # Channel Risk Proxy
     # ------------------------------------------------------------------
 
-    def _extract_channel_risk(
-        self, feature_dict: Dict[str, float]
-    ) -> Dict[str, float]:
+    def _extract_channel_risk(self, X_s: np.ndarray) -> Dict[str, float]:
         """
-        Derive per-channel risk as the average absolute feature value across
-        all features belonging to that channel (RMS + Hjorth mobility proxy).
+        Per-channel deviation from the training baseline: the mean absolute
+        z-score of that channel's model features, weighted by feature
+        importance when available, normalised to 0-1.
         """
+        z = np.abs(X_s[0])
+        w = self._importances if self._importances is not None else np.ones_like(z)
         channel_risk: Dict[str, float] = {}
         for ch in _CHANNEL_PREFIXES:
-            ch_vals = [
-                abs(feature_dict[k]) for k in feature_dict
-                if k.startswith(ch)
-            ]
-            channel_risk[ch] = float(np.mean(ch_vals)) if ch_vals else 0.0
-
-        # Normalize 0→1
+            idx = [i for i, c in enumerate(self._feature_cols) if c.startswith(ch)]
+            if idx:
+                ww = w[idx]
+                channel_risk[ch] = float((z[idx] * ww).sum() / (ww.sum() or 1.0))
+            else:
+                channel_risk[ch] = 0.0
         max_v = max(channel_risk.values()) or 1.0
         return {ch: v / max_v for ch, v in channel_risk.items()}
 
@@ -239,12 +294,28 @@ class ClassicalMLInferenceEngine:
     # ------------------------------------------------------------------
 
     def _top_features(
-        self, feature_dict: Dict[str, float], n: int = 8
+        self, feature_dict: Dict[str, float], X_s: np.ndarray, n: int = 8
     ) -> List[Dict[str, Any]]:
-        """Return the N features with the highest absolute values."""
-        items = [(k, abs(v)) for k, v in feature_dict.items() if np.isfinite(v)]
-        items.sort(key=lambda x: x[1], reverse=True)
-        return [{"name": k, "value": feature_dict[k]} for k, _ in items[:n]]
+        """
+        The N features contributing most to this window: feature importance
+        times how far the value is from the training mean (|z-score|).
+        """
+        z = np.abs(X_s[0]).astype(np.float64)
+        score = z * self._importances if self._importances is not None else z
+        resolved = self._resolve(feature_dict.keys())
+        order = np.argsort(score)[::-1]
+        out: List[Dict[str, Any]] = []
+        for i in order:
+            if score[i] <= 0 or resolved[i] is None:
+                continue
+            out.append({
+                "name":  self._feature_cols[i],
+                "value": float(feature_dict[resolved[i]]),
+                "score": float(score[i]),
+            })
+            if len(out) == n:
+                break
+        return out
 
     # ------------------------------------------------------------------
     # Main Prediction
@@ -266,7 +337,7 @@ class ClassicalMLInferenceEngine:
                 "risk_score": 0.0,
                 "label_pred": 0,
                 "channel_risk": {},
-                "band_power": {},
+                "band_power": self._extract_band_power(feature_dict),
                 "top_features": [],
                 "error": "Model not loaded",
             }
@@ -279,16 +350,12 @@ class ClassicalMLInferenceEngine:
             risk_score = float(prob_arr[0, 1])
             label_pred = int(risk_score >= RISK_THRESHOLD)
 
-            channel_risk = self._extract_channel_risk(feature_dict)
-            band_power   = self._extract_band_power(feature_dict)
-            top_feats    = self._top_features(feature_dict)
-
             return {
                 "risk_score":   risk_score,
                 "label_pred":   label_pred,
-                "channel_risk": channel_risk,
-                "band_power":   band_power,
-                "top_features": top_feats,
+                "channel_risk": self._extract_channel_risk(X_s),
+                "band_power":   self._extract_band_power(feature_dict),
+                "top_features": self._top_features(feature_dict, X_s),
             }
 
         except Exception as exc:

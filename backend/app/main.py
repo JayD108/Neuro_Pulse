@@ -1,8 +1,7 @@
 """
-NeuroPulse — FastAPI Backend (V1 Classical ML)
-================================================
-Real-time EEG seizure prediction powered by the classical ML ensemble
-(XGBoost + LightGBM + RandomForest + Logistic Regression meta-learner).
+APALA — FastAPI Backend (V1 Classical ML)
+==========================================
+Real-time EEG seizure prediction powered by the V1 classical ML model (XGBoost).
 
 Endpoints:
   GET  /health               -- Liveness probe + model status
@@ -22,15 +21,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.schemas import PatientInfo, HealthResponse
 from backend.app.inference import ClassicalMLInferenceEngine
-from backend.app.simulator_engine import SimulatorEngine, PROCESSED_DIR
+from backend.app.simulator_engine import SimulatorEngine, PROCESSED_DIR, clear_csv_cache
 from backend.app.websocket_manager import WebSocketManager
 
 # ---------------------------------------------------------------------------
 # App Initialization
 # ---------------------------------------------------------------------------
 app = FastAPI(
-    title="NeuroPulse API",
-    description="Real-time EEG seizure prediction powered by XGBoost + LightGBM + RF ensemble.",
+    title="APALA API",
+    description="Real-time EEG seizure prediction (V1 classical ML, XGBoost).",
     version="1.0.0",
 )
 
@@ -55,10 +54,10 @@ ws_manager = WebSocketManager()
 
 @app.get("/", tags=["system"])
 def root():
-    """Root endpoint — verifies NeuroPulse API is online."""
+    """Root endpoint — verifies the APALA API is online."""
     return {
         "status": "ok",
-        "service": "NeuroPulse API",
+        "service": "APALA API",
         "version": "1.0.0",
         "model_loaded": inference.is_ready(),
     }
@@ -81,6 +80,7 @@ def reload_model():
     Call after retraining to activate updated model without restarting the server.
     """
     inference.reload()
+    clear_csv_cache()
     return {
         "status": "reloaded",
         "model_loaded": inference.is_ready(),
@@ -109,7 +109,7 @@ def patient_info(patient_id: str):
         raise HTTPException(
             status_code=404,
             detail=f"No processed CSV found for patient: {patient_id}. "
-                   f"Run ml/ingest_dataset.py first."
+                   f"Download it from the dataset on Hugging Face (see README)."
         )
 
     # Read only the label column to count windows efficiently
@@ -124,7 +124,7 @@ def patient_info(patient_id: str):
         n_preictal=n_preictal,
         n_interictal=n_interictal,
         model_loaded=inference.is_ready(),
-        model_type="XGBoost + LightGBM + RF Ensemble",
+        model_type="XGBoost (V1)",
     )
 
 
@@ -173,7 +173,7 @@ def dataset_stats():
 async def websocket_stream(websocket: WebSocket, patient_id: str):
     """
     Real-time seizure risk telemetry stream.
-    Streams ensemble predictions from pre-processed CSV every 0.5 seconds.
+    Streams model predictions from pre-processed CSV every 0.5 seconds.
     Each frame matches the TelemetryFrame schema.
     """
     csv_path = os.path.join(PROCESSED_DIR, f"{patient_id}_labeled_features.csv")

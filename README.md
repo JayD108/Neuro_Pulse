@@ -35,14 +35,14 @@ real-time backend and a dashboard. It also tells the story of why the project is
 | **Features** | 590 per window for an 18-channel recording, up to 1,365 |
 | **Ensemble** | XGBoost (500 trees, GPU) + LightGBM (500) + Random Forest (300) → Logistic Regression |
 | **Speed-ups** | Sample Entropy 695 ms → 4.4 ms per window with Numba (**158×**); all 686 files processed in ~40 min with 20 workers |
-| **Models** | 47.9 MB stacking ensemble (research); 180-feature XGBoost serving the live dashboard |
+| **Models** | 47.9 MB stacking ensemble (research); 3.4 MB XGBoost on all 24 patients (590 features) serving the live dashboard |
 | **Live system** | 6 API endpoints, WebSocket stream per patient, patient monitor, 10-20 electrode map, dataset and methods pages |
 
 ---
 
 ## Results
 
-V1 was measured in three ways. They give very different numbers, and the difference is the most important
+V1 was measured in four ways. They give very different numbers, and the difference is the most important
 thing this project learned.
 
 | Evaluation | ROC-AUC | Sensitivity | Specificity | False alarms | What it means |
@@ -50,10 +50,50 @@ thing this project learned.
 | **One known patient** (chb01, 14,338 windows) | 0.998 | 94.3% | 99.5% | 0.5% | Trained and tested on the same patient |
 | **Ensemble evaluation** (3,585 windows) | 0.993 | 92.3% | 97.6% | 2.4% | 227 of 246 pre-ictal windows caught, 81 false alarms |
 | **Unseen patients** (train chb01–10 → test chb11–24) | 0.595 | 5.7% | 98.1% | 1.9% | Patients the model has never seen |
+| **Leave-one-patient-out**, all 24 patients | 0.56 mean · 0.59 median | 27.9% | 77.7% | — | Each patient scored by a model trained on the other 23 |
 
-On patients it already knows, V1 is very strong. On new patients it is barely better than chance (0.5). That
-gap is normal in seizure prediction, because every brain is different, and it is exactly the problem APALA sets
-out to solve.
+On patients it already knows, V1 is very strong. On new patients it is only slightly better than chance (0.5),
+and the per-patient results range from 0.26 to 0.71. chb01, which scores 0.998 when the model has seen it, scores
+0.26 when it hasn't. The 0.5 decision threshold also doesn't transfer: sensitivity ranges from 0% to 86% between
+patients. That gap is normal in seizure prediction, because every brain is different, and it is exactly the
+problem APALA sets out to solve.
+
+<details>
+<summary><b>Leave-one-patient-out results per patient</b> (XGBoost, 590 features, 500 trees)</summary>
+
+| Patient | Windows (pre-ictal) | ROC-AUC | PR-AUC | Sensitivity | Specificity |
+|:---|---:|---:|---:|---:|---:|
+| chb01 | 14,338 (982) | 0.259 | 0.043 | 1.6% | 79.2% |
+| chb02 | 12,593 (371) | 0.387 | 0.022 | 6.2% | 87.2% |
+| chb03 | 13,425 (861) | 0.367 | 0.047 | 0.0% | 99.8% |
+| chb04 | 56,014 (694) | 0.435 | 0.012 | 1.7% | 99.2% |
+| chb05 | 13,829 (686) | 0.584 | 0.095 | 32.8% | 84.3% |
+| chb06 | 23,719 (1,508) | 0.652 | 0.089 | 32.7% | 78.6% |
+| chb07 | 24,012 (538) | 0.470 | 0.020 | 6.9% | 88.8% |
+| chb08 | 6,955 (896) | 0.706 | 0.197 | 47.1% | 73.3% |
+| chb09 | 24,279 (716) | 0.475 | 0.033 | 17.6% | 85.2% |
+| chb10 | 17,753 (1,212) | 0.671 | 0.155 | 3.1% | 99.7% |
+| chb11 | 12,351 (353) | 0.643 | 0.040 | 57.2% | 59.5% |
+| chb12 | 7,422 (1,814) | 0.536 | 0.328 | 62.4% | 36.9% |
+| chb13 | 11,464 (1,113) | 0.610 | 0.143 | 68.5% | 44.8% |
+| chb14 | 9,096 (1,246) | 0.522 | 0.147 | 34.4% | 70.1% |
+| chb15 | 13,630 (1,750) | 0.556 | 0.161 | 0.4% | 99.9% |
+| chb16 | 6,526 (985) | 0.431 | 0.123 | 32.6% | 54.2% |
+| chb17 | 7,440 (537) | 0.669 | 0.101 | 19.6% | 84.5% |
+| chb18 | 12,652 (816) | 0.674 | 0.110 | 13.0% | 94.1% |
+| chb19 | 10,678 (387) | 0.693 | 0.141 | 41.3% | 89.4% |
+| chb20 | 9,657 (856) | 0.673 | 0.198 | 86.3% | 30.5% |
+| chb21 | 11,674 (665) | 0.648 | 0.080 | 37.1% | 75.8% |
+| chb22 | 11,060 (484) | 0.680 | 0.079 | 48.1% | 76.3% |
+| chb23 | 9,299 (947) | 0.595 | 0.132 | 1.5% | 99.2% |
+| chb24 | 7,209 (1,895) | 0.498 | 0.246 | 18.5% | 75.0% |
+| **Mean** | | **0.560** | **0.114** | **27.9%** | **77.7%** |
+| **Median** | | **0.590** | **0.105** | | |
+
+Sensitivity and specificity at a 0.5 threshold. Missing channels (chb12–chb22 lack the right-temporal chain in
+many recordings) are left as missing values, which XGBoost handles natively. Full results:
+`V1_Classical_ML/models/trained/apala_xgb_v1_lopo.json`.
+</details>
 
 <sub>Sources: <code>V1_Classical_ML/reports/model_results/</code> and <a href="Docs/report.txt"><code>Docs/report.txt</code></a> §8.</sub>
 
@@ -72,7 +112,8 @@ code, so the stacking was rewritten by hand to keep the RTX 5080 GPU busy. Flat 
 infinite values, so three layers of clean-up were added. The result was a working, live, 47.9 MB model.
 
 **3. The honest test.** Tested on the patients it was trained on, the model scored an ROC-AUC of 0.998. Tested
-on 14 patients it had never seen, it scored 0.595 and caught only 5.7% of pre-ictal windows. A system for real
+on 14 patients it had never seen, it scored 0.595 and caught only 5.7% of pre-ictal windows. A later
+leave-one-patient-out run across all 24 patients confirmed it: a mean ROC-AUC of 0.56. A system for real
 hospitals has to work on the *next* patient who walks in, not only on the ones it has already studied.
 
 **4. A clean rebuild.** So the project was re-planned from the ground up around one research question: *can a
@@ -92,7 +133,8 @@ early, so that something can be done before the seizure begins.
 > The name is a cultural homage. Apālā is not documented as a physician or scientist, and whether she herself
 > composed Ṛgveda 8.91 cannot be established with certainty.
 
-The classical V1 system lives on in [`V1_Classical_ML/`](V1_Classical_ML); its XGBoost model powers the dashboard today.
+The classical V1 system lives on in [`V1_Classical_ML/`](V1_Classical_ML). The dashboard runs its XGBoost model
+trained on all 24 patients, and shows each patient's leave-one-patient-out score next to the live risk.
 
 ---
 
@@ -131,7 +173,8 @@ You need **Python 3.10+** and **Node.js 18+**. An NVIDIA GPU is optional.
 
 | What | Where | Put it in |
 |:---|:---|:---|
-| Model (`xgboost_model.pkl`, `scaler.pkl`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) → `models/` | `V1_Classical_ML/models/trained/` and `V1_Classical_ML/models/scalers/` |
+| Model, all 24 patients (`apala_xgb_v1.json`, `apala_xgb_v1_features.json`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) (upload pending) | `V1_Classical_ML/models/trained/` |
+| Original V1 model, used if the one above is absent (`xgboost_model.pkl`, `scaler.pkl`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) → `models/` | `V1_Classical_ML/models/trained/` and `V1_Classical_ML/models/scalers/` |
 | Processed features (24 CSVs, ~4 GB) | [JayF14/chb-mit-preprocessed-eeg](https://huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg) | `V1_Classical_ML/ml/data/processed/` |
 
 You can start with a few patients' CSVs; the dashboard shows whichever are present.

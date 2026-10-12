@@ -149,6 +149,7 @@ def dataset_stats():
                 "n_preictal":   int((df["target_label"] == 1).sum()),
                 "n_interictal": int((df["target_label"] == 0).sum()),
                 "n_ictal":      int((df["target_label"] == 2).sum()),
+                "lopo_auc":     inference.lopo_auc.get(pid),
             })
         except Exception as e:
             rows.append({"patient_id": pid, "error": str(e)})

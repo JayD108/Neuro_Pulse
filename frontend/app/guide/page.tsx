@@ -94,9 +94,11 @@ export default function MethodsPage() {
 
       <Section id="model" n={5} title="Model">
         <p>
-          <strong>Dashboard model.</strong> The live dashboard uses the V1 XGBoost classifier on 180 features
-          (Welch band power, Hjorth parameters, RMS and zero-crossing rate for 18 channels), standardised with the
-          training scaler. It outputs the probability that a window is pre-ictal.
+          <strong>Dashboard model.</strong> The live dashboard uses an XGBoost classifier (500 trees, depth 6) trained
+          on all 24 patients and all 590 features, saved in XGBoost&apos;s native format. Features are used unscaled;
+          channels missing from a recording are left as missing values, which XGBoost handles natively. It outputs
+          the probability that a window is pre-ictal. If this model is absent, the original 180-feature V1 model
+          (trained on chb01) is used instead.
         </p>
         <p>
           <strong>Research ensemble.</strong> V1 also trained a two-level stacking ensemble on the full feature
@@ -105,9 +107,9 @@ export default function MethodsPage() {
           <span className="mono"> scale_pos_weight</span> and balanced class weights.
         </p>
         <p>
-          <strong>Explanations.</strong> For each window the dashboard lists the features with the highest
-          importance × |z-score| and shades each channel by its importance-weighted deviation from the training
-          baseline. These describe the input, not a causal explanation.
+          <strong>Explanations.</strong> For each window the dashboard lists the features with the largest
+          contribution to the score (XGBoost&apos;s exact per-feature contributions, with direction) and shades each
+          channel by its share of the total. They explain the model&apos;s output, not the cause of a seizure.
         </p>
       </Section>
 
@@ -129,11 +131,14 @@ export default function MethodsPage() {
             <tr><td style={{ color: "var(--text-primary)" }}>XGBoost · one known patient (chb01)</td><td className="r mono">0.998</td><td className="r mono">94.3%</td><td className="r mono">99.5%</td></tr>
             <tr><td style={{ color: "var(--text-primary)" }}>Ensemble · held-out windows (3,585)</td><td className="r mono">0.993</td><td className="r mono">92.3%</td><td className="r mono">97.6%</td></tr>
             <tr><td style={{ color: "var(--text-primary)" }}>Ensemble · unseen patients (train chb01–10, test chb11–24)</td><td className="r mono">0.595</td><td className="r mono">5.7%</td><td className="r mono">98.1%</td></tr>
+            <tr><td style={{ color: "var(--text-primary)" }}>XGBoost · leave-one-patient-out, 24 patients (mean)</td><td className="r mono">0.560</td><td className="r mono">27.9%</td><td className="r mono">77.7%</td></tr>
           </tbody>
         </table>
         <div className="notice warn">
-          On patients it has never seen, V1 is barely better than chance. Generalising to new patients is the
-          central open problem and the reason for the APALA rebuild.
+          On patients it has never seen, V1 is only slightly better than chance: leave-one-patient-out ROC-AUC ranges
+          from 0.26 (chb01) to 0.71 (chb08), median 0.59, and a fixed 0.5 threshold gives 0–86% sensitivity depending on
+          the patient. Each patient&apos;s held-out score is shown on its page and on the Dataset page. Generalising to
+          new patients is the central open problem and the reason for the APALA rebuild.
         </div>
       </Section>
 

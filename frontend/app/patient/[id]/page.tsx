@@ -144,8 +144,9 @@ export default function PatientPage({ params }: { params: Promise<{ id: string }
       </div>
 
       <p className="panel-note" style={{ marginTop: 4 }}>
-        Replay of recorded data for research. Scores on patients the model was trained on are optimistic;
-        on unseen patients V1 reaches ROC-AUC 0.595 (see Methods). Not for clinical decisions.
+        Replay of recorded data for research. The model has seen this recording in training, so live scores are
+        optimistic; the held-out AUC above shows how it did when this patient was left out (mean 0.56 across
+        patients, see Methods). Not for clinical decisions.
       </p>
     </div>
   );

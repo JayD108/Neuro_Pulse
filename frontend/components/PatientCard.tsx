@@ -2,108 +2,60 @@
 
 import Link from "next/link";
 import { usePatientStream } from "@/hooks/usePatientStream";
-import { riskColor, ALERT_THRESHOLD } from "@/lib/constants";
+import { riskLevel, RISK_LEVEL_INFO, formatClock } from "@/lib/constants";
+import Sparkline from "@/components/Sparkline";
 
 interface PatientCardProps {
   patientId: string;
 }
 
 export default function PatientCard({ patientId }: PatientCardProps) {
-  const { frame, history, connected } = usePatientStream(patientId);
+  const { frame, history, connected } = usePatientStream(patientId, { maxHistory: 60 });
 
-  const risk        = frame?.risk_score ?? 0;
-  const isAlert     = risk >= ALERT_THRESHOLD;
-  const fillColor   = riskColor(risk);
-  const riskPct     = Math.round(risk * 100);
-
-  // Mini sparkline — last 20 risk_score values
-  const sparkData   = history.slice(-20).map(f => f.risk_score);
-  const sparkMax    = Math.max(...sparkData, 0.01);
+  const risk    = frame?.risk_score ?? 0;
+  const level   = riskLevel(risk);
+  const info    = RISK_LEVEL_INFO[level];
+  const isAlert = frame?.alert ?? false;
 
   return (
-    <Link href={`/patient/${patientId}`} style={{ textDecoration: "none" }}>
-      <div
-        className={`glass-panel hover-lift ${isAlert ? "card-alert-pulse" : ""}`}
-        style={{
-          padding: "20px",
-          cursor: "pointer",
-          border: isAlert
-            ? "1px solid rgba(255, 51, 102, 0.5)"
-            : "1px solid var(--border-subtle)",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Header row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div>
-            <div className="section-label" style={{ marginBottom: 4 }}>Patient</div>
-            <div className="display-font gradient-text" style={{ fontWeight: 800, fontSize: "22px", letterSpacing: "0.04em" }}>
+    <Link href={`/patient/${patientId}`} className="card-link">
+      <div className={`panel ${isAlert ? "card-alert" : ""}`} style={{ padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              className="status-dot"
+              title={connected ? "Receiving data" : "Not connected"}
+              style={{ background: connected ? "var(--status-normal)" : "var(--text-muted)" }}
+            />
+            <span className="mono" style={{ fontWeight: 600, fontSize: 15, letterSpacing: "0.04em" }}>
               {patientId.toUpperCase()}
-            </div>
-          </div>
-
-          {/* Connection indicator */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-            <span style={{
-              width: 10, height: 10, borderRadius: "50%",
-              background: connected ? "var(--accent-teal)" : "#475569",
-              boxShadow: connected ? "0 0 12px var(--accent-teal)" : "none",
-              display: "block",
-            }} />
-            {isAlert && (
-              <span className="risk-badge alert">Alert</span>
-            )}
-          </div>
-        </div>
-
-        {/* Risk Score */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <span className="panel-title">Seizure Risk</span>
-            <span className="display-font" style={{ fontWeight: 800, fontSize: "18px", color: fillColor, textShadow: `0 0 10px ${fillColor}50` }}>
-              {riskPct}%
             </span>
           </div>
-          <div className="risk-bar-track">
-            <div
-              className="risk-bar-fill"
-              style={{ width: `${riskPct}%`, background: fillColor }}
-            />
-          </div>
+          <span className="status-tag" style={{ color: frame ? info.color : "var(--text-muted)" }}>
+            {frame ? info.label : "No data"}
+          </span>
         </div>
 
-        {/* Mini Sparkline */}
-        <div style={{ position: "relative", height: "36px", margin: "0 -8px" }}>
-          <svg width="100%" height="100%" viewBox={`0 0 ${sparkData.length} 1`} preserveAspectRatio="none" style={{ position: "absolute", bottom: 0 }}>
-            <defs>
-              <linearGradient id={`gradient-${patientId}`} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor={fillColor} stopOpacity="0.3" />
-                <stop offset="100%" stopColor={fillColor} stopOpacity="0.0" />
-              </linearGradient>
-            </defs>
-            <polygon
-              points={`0,1 ${sparkData.map((v, i) => `${i},${1 - v / sparkMax}`).join(" ")} ${sparkData.length - 1},1`}
-              fill={`url(#gradient-${patientId})`}
-            />
-            <polyline
-              points={sparkData.map((v, i) => `${i},${1 - v / sparkMax}`).join(" ")}
-              fill="none"
-              stroke={fillColor}
-              strokeWidth="0.06"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              opacity="0.9"
-            />
-          </svg>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+          <span className="panel-note">Pre-ictal risk</span>
+          <span className="mono" style={{ fontSize: 22, fontWeight: 600, color: frame ? info.color : "var(--text-muted)" }}>
+            {frame ? `${Math.round(risk * 100)}%` : "—"}
+          </span>
+        </div>
+        <div className="risk-bar-track" style={{ marginBottom: 12 }}>
+          <div className="risk-bar-fill" style={{ width: `${risk * 100}%`, background: info.color }} />
         </div>
 
-        {/* Window index */}
-        {frame && (
-          <div className="section-label mono" style={{ marginTop: 6 }}>
-            Window #{frame.window_idx}
-          </div>
-        )}
+        <Sparkline values={history.map(f => f.risk_score)} color={info.color} height={32} />
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+          <span className="panel-note mono">
+            {frame ? `t ${formatClock(frame.window_start)}` : "waiting…"}
+          </span>
+          <span className="panel-note mono">
+            {frame ? `win ${frame.window_idx}` : ""}
+          </span>
+        </div>
       </div>
     </Link>
   );

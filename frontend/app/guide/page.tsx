@@ -1,277 +1,184 @@
-export const metadata = {
-  title: "How It Works — NeuroPulse EEG Guide",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Methods — APALA",
   description:
-    "An interactive educational guide explaining what seizures are, how EEG measures brainwaves, what Interictal and Preictal mean, and how the NeuroPulse AI predicts seizures before they happen.",
+    "How APALA V1 labels, processes and scores scalp EEG: data, pre-ictal labelling, features, model, alerting and results on the CHB-MIT database.",
 };
 
-export default function GuidePage() {
+const SECTIONS = [
+  ["problem",  "Problem"],
+  ["data",     "Data"],
+  ["labels",   "Labelling"],
+  ["features", "Signal processing and features"],
+  ["model",    "Model"],
+  ["alerting", "Smoothing and alerting"],
+  ["results",  "Results"],
+  ["limits",   "Limitations and next steps"],
+] as const;
+
+export default function MethodsPage() {
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto", padding: "48px 28px 80px" }}>
+    <div className="page-narrow">
+      <div className="section-label" style={{ marginBottom: 6 }}>Methods</div>
+      <h1 className="page-title" style={{ fontSize: 28, marginBottom: 10 }}>How APALA V1 works</h1>
+      <p className="lead" style={{ marginBottom: 28 }}>
+        A technical summary of the pipeline behind this dashboard, from raw scalp EEG to the risk score on each
+        patient card. Full details are in <span className="mono">Docs/report.txt</span>.
+      </p>
 
-      {/* Hero */}
-      <div style={{ textAlign: "center", marginBottom: 60 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--accent-teal)", marginBottom: 12 }}>
-          Educational Notebook
-        </div>
-        <h1 style={{ fontSize: "clamp(28px, 5vw, 44px)", fontWeight: 800, lineHeight: 1.15, margin: "0 0 20px", letterSpacing: "-0.02em" }}>
-          How Does NeuroPulse<br />
-          <span className="neon-teal">Predict a Seizure?</span>
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: 16, lineHeight: 1.8, maxWidth: 620, margin: "0 auto" }}>
-          A complete, jargon-free walkthrough of the science behind reading brainwaves and using AI to catch a seizure before it happens — written for anyone, not just doctors or engineers.
+      <nav className="panel" style={{ padding: "12px 16px", marginBottom: 40 }}>
+        <ol style={{ listStyle: "none", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 24px" }}>
+          {SECTIONS.map(([id, title], i) => (
+            <li key={id} style={{ fontSize: 13 }}>
+              <span className="mono" style={{ color: "var(--text-muted)", marginRight: 8 }}>{i + 1}</span>
+              <a href={`#${id}`} style={{ textDecoration: "none" }}>{title}</a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      <Section id="problem" n={1} title="Problem">
+        <p>
+          Seizure <em>detection</em> recognises a seizure once it has started. Seizure <em>forecasting</em>, the
+          goal here, recognises the <strong>pre-ictal</strong> state: the period before onset in which the EEG
+          changes but the patient shows no clinical signs. A reliable warning would leave time to call staff,
+          secure the patient or give medication.
         </p>
-      </div>
-
-      {/* Table of Contents */}
-      <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "20px 28px", marginBottom: 52 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 14 }}>Contents</div>
-        {[
-          ["1", "What is a Seizure?"],
-          ["2", "What is an EEG?"],
-          ["3", "The Four States of the Brain"],
-          ["4", "What is a Window?"],
-          ["5", "595 Features — What We Measure"],
-          ["6", "The AI Engine — How It Predicts"],
-          ["7", "The Dataset — 24 Real Patients"],
-          ["8", "How Accurate Is It?"],
-        ].map(([n, title]) => (
-          <div key={n} style={{ display: "flex", alignItems: "center", gap: 12, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-            <span style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(0,212,200,0.12)", border: "1px solid rgba(0,212,200,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--accent-teal)", flexShrink: 0 }}>{n}</span>
-            <a href={`#section-${n}`} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{title}</a>
-          </div>
-        ))}
-      </div>
-
-      {/* Sections */}
-      <Section id="section-1" number="1" title="What is a Seizure?">
-        <p>A seizure is a sudden, uncontrolled electrical storm in the brain. Normally, neurons (brain cells) fire in controlled, rhythmic patterns — like an orchestra playing in sync. During a seizure, millions of neurons all fire at once in an uncoordinated burst. The result can be convulsions, loss of consciousness, or temporary confusion depending on which area of the brain is affected.</p>
-        <Callout icon="🧠" label="Key Fact">
-          Epilepsy is not a single disease — it is a spectrum of 40+ different seizure disorders. About 50 million people worldwide live with epilepsy, making it one of the most common neurological conditions on Earth.
-        </Callout>
-        <p>The critical challenge is that seizures are unpredictable. Most patients cannot tell when a seizure is coming, which means they cannot take protective action — they may be driving, swimming, or working with machinery. <strong>NeuroPulse solves this by detecting the warning signs up to 45 minutes before seizure onset.</strong></p>
       </Section>
 
-      <Section id="section-2" number="2" title="What is an EEG?">
-        <p>An EEG (ElectroEncephaloGram) is a painless medical test that records the electrical activity of the brain through small electrodes placed on the scalp. Each electrode detects the tiny voltage fluctuations generated by millions of neurons firing underneath.</p>
-        <div style={{ background: "rgba(0,212,200,0.05)", border: "1px solid rgba(0,212,200,0.15)", borderRadius: 10, padding: "20px 24px", margin: "24px 0" }}>
-          <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 13, color: "var(--accent-teal)" }}>CHB-MIT Dataset — Hardware Specs</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {[
-              ["Sampling Rate", "256 Hz (256 measurements per second, per electrode)"],
-              ["Electrode Count", "18–23 bipolar channels per patient"],
-              ["Resolution", "16-bit ADC (65,536 voltage levels)"],
-              ["Montage", "International 10-20 System (standard for clinical EEG)"],
-            ].map(([k, v]) => (
-              <div key={k} style={{ padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 3 }}>{k}</div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <p>The electrodes are placed at standard anatomical positions (Fp1, Fp2, F3, F4, C3, C4, etc.) and connected in <em>bipolar pairs</em> — meaning each channel records the voltage difference between two adjacent electrodes. This technique automatically cancels out background electrical noise from the body.</p>
+      <Section id="data" n={2} title="Data">
+        <p>
+          CHB-MIT Scalp EEG Database (Boston Children&apos;s Hospital and MIT, PhysioNet): 24 patients aged 1.5–22,
+          686 EDF recordings (about 686 hours) and 198 expert-annotated seizures.
+        </p>
+        <KeyValue rows={[
+          ["Sampling rate", "256 Hz, 16-bit"],
+          ["Montage", "International 10-20 system, bipolar pairs"],
+          ["Channels", "18–23 per recording; 18 used"],
+          ["Ground truth", "Seizure onset and offset times from each patient's summary file"],
+        ]} />
       </Section>
 
-      <Section id="section-3" number="3" title="The Four States of the Brain">
-        <p>In epilepsy medicine, a patient's life is divided into four clinical phases, all named using the Latin word <em>ictus</em> meaning "seizure strike":</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 0, margin: "24px 0", border: "1px solid var(--border-subtle)", borderRadius: 12, overflow: "hidden" }}>
-          {[
-            { color: "#22c55e", phase: "Interictal", sub: "BETWEEN seizures", icon: "😴", desc: "The patient's normal baseline brain state. They are awake, sleeping, or doing daily activities with no seizure happening or imminent. This state can last hours, days, or weeks between episodes." },
-            { color: "#facc15", phase: "Preictal", sub: "BEFORE the seizure", icon: "⚠️", desc: "The critical warning period 15–45 minutes before seizure onset. The patient feels completely normal on the outside, but subtle changes in neural synchronization are already building up. THIS IS WHAT NEUROPULSE DETECTS." },
-            { color: "#ef4444", phase: "Ictal", sub: "THE seizure", icon: "⚡", desc: "The active seizure event itself, lasting 30 seconds to 5 minutes. Millions of neurons fire in uncontrolled synchrony. The patient may convulse, stare blankly, or lose consciousness." },
-            { color: "#a78bfa", phase: "Postictal", sub: "AFTER the seizure", icon: "🌫️", desc: "The 15–30 minute recovery period immediately after a seizure. The brain is exhausted and confused. The patient may feel disoriented, sleepy, or have a headache. Brain activity is abnormally slow." },
-          ].map(({ color, phase, sub, icon, desc }) => (
-            <div key={phase} style={{ display: "flex", gap: 18, padding: "18px 22px", borderBottom: "1px solid var(--border-subtle)", alignItems: "flex-start" }}>
-              <div style={{ width: 4, borderRadius: 4, background: color, flexShrink: 0, alignSelf: "stretch" }} />
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 20 }}>{icon}</span>
-                  <span style={{ fontWeight: 700, fontSize: 15, color }}>{phase}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)" }}>{sub}</span>
-                </div>
-                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <Callout icon="🎯" label="What NeuroPulse Does">
-          NeuroPulse is NOT a seizure detector — it is a seizure predictor. We classify every 10-second window of brain data as either Interictal (Class 0 — safe) or Preictal (Class 1 — danger building). If we catch the Preictal state, the patient gets 15–45 minutes of warning before the storm hits.
-        </Callout>
+      <Section id="labels" n={3} title="Labelling">
+        <p>Each 10-second window receives one label relative to the nearest annotated seizure:</p>
+        <table className="data-table" style={{ margin: "12px 0" }}>
+          <thead><tr><th>Label</th><th>Definition</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td style={{ color: "var(--text-primary)" }}>Interictal</td><td>At least 30 min from any seizure</td><td>Class 0</td></tr>
+            <tr><td style={{ color: "var(--text-primary)" }}>Pre-ictal</td><td>Within 30 min before a seizure onset</td><td>Class 1 (target)</td></tr>
+            <tr><td style={{ color: "var(--text-primary)" }}>Ictal</td><td>Overlaps a seizure</td><td>Excluded</td></tr>
+            <tr><td style={{ color: "var(--text-primary)" }}>Post-ictal</td><td>Within 5 min after a seizure ends</td><td>Excluded</td></tr>
+          </tbody>
+        </table>
+        <p>
+          The result is 347,075 windows: 324,763 interictal and 22,312 pre-ictal, an imbalance of 14.6 : 1.
+        </p>
       </Section>
 
-      <Section id="section-4" number="4" title='What is a "Window"?'>
-        <p>An EEG machine produces a continuous, uninterrupted river of data — 256 voltage readings per second, per electrode, for hours on end. We cannot feed this raw stream directly into an AI model.</p>
-        <p>Instead, we slice the recording into fixed-length <strong>windows</strong> — like taking a 10-second photograph of the brain every 10 seconds:</p>
-        <div style={{ fontFamily: "var(--font-mono)", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)", borderRadius: 8, padding: "16px 20px", margin: "20px 0", fontSize: 12, lineHeight: 2, overflowX: "auto" }}>
-          <div style={{ color: "var(--text-muted)" }}>Continuous EEG: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
-          <div style={{ color: "var(--accent-teal)" }}>Windows:        [  W1  ] [  W2  ] [  W3  ] ... [  Wn  ]</div>
-          <div style={{ color: "var(--text-muted)" }}>Duration each:    10 sec   10 sec   10 sec         10 sec</div>
-          <div style={{ color: "#22c55e" }}>Label each:       Normal   Normal   Normal         ALERT!</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, margin: "20px 0" }}>
-          {[
-            ["Window Size", "10 seconds", "Long enough to capture slow Delta waves, short enough to be near-stationary"],
-            ["Data Points", "2,560 per channel", "256 Hz × 10 seconds = 2,560 voltage samples per electrode"],
-            ["Labeling Rule", "Preictal = last 30–45 min before any seizure onset", "Interictal = at least 4 hours away from any seizure"],
-          ].map(([k, v, sub]) => (
-            <div key={k} style={{ background: "var(--bg-panel)", border: "1px solid var(--border-subtle)", borderRadius: 10, padding: "16px" }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{k}</div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "var(--accent-teal)", marginBottom: 6 }}>{v}</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.6 }}>{sub}</div>
-            </div>
-          ))}
+      <Section id="features" n={4} title="Signal processing and features">
+        <p>
+          Each recording is band-pass filtered at 0.5–50 Hz (4th-order Butterworth, second-order sections) with a
+          60 Hz notch, then cut into non-overlapping 10-second windows (2,560 samples per channel). For an
+          18-channel recording, 590 features are computed per window:
+        </p>
+        <KeyValue rows={[
+          ["Spectral", "Welch band power, absolute and relative, in δ 0.5–4, θ 4–8, α 8–13, β 13–30, γ 30–50 Hz"],
+          ["Time-domain", "Hjorth activity, mobility and complexity; RMS amplitude; zero-crossing rate"],
+          ["Multi-scale", "db4 discrete wavelet energy at levels A5 and D1–D5"],
+          ["Non-linear", "Sample entropy (Numba-compiled, 158× faster) and Higuchi fractal dimension"],
+          ["Connectivity", "Magnitude-squared coherence for 8 channel pairs in 4 bands, incl. inter-hemispheric"],
+          ["Ratios", "θ/α, (δ+θ)/(α+β), β/α and relative powers per channel"],
+        ]} />
+      </Section>
+
+      <Section id="model" n={5} title="Model">
+        <p>
+          <strong>Dashboard model.</strong> The live dashboard uses the V1 XGBoost classifier on 180 features
+          (Welch band power, Hjorth parameters, RMS and zero-crossing rate for 18 channels), standardised with the
+          training scaler. It outputs the probability that a window is pre-ictal.
+        </p>
+        <p>
+          <strong>Research ensemble.</strong> V1 also trained a two-level stacking ensemble on the full feature
+          set: XGBoost (500 trees, GPU), LightGBM (500 trees) and Random Forest (300 trees), combined by a
+          logistic-regression meta-learner trained on out-of-fold predictions. Class imbalance is handled with
+          <span className="mono"> scale_pos_weight</span> and balanced class weights.
+        </p>
+        <p>
+          <strong>Explanations.</strong> For each window the dashboard lists the features with the highest
+          importance × |z-score| and shades each channel by its importance-weighted deviation from the training
+          baseline. These describe the input, not a causal explanation.
+        </p>
+      </Section>
+
+      <Section id="alerting" n={6} title="Smoothing and alerting">
+        <KeyValue rows={[
+          ["Smoothing", "Mean of the 8 highest window scores among the last 10 windows"],
+          ["Watch", "Smoothed risk ≥ 30%"],
+          ["Alert", "Smoothed risk ≥ 60%, sustained for 3 consecutive windows"],
+        ]} />
+      </Section>
+
+      <Section id="results" n={7} title="Results">
+        <p>V1 performs very differently depending on whether the test patients were seen in training:</p>
+        <table className="data-table" style={{ margin: "12px 0" }}>
+          <thead>
+            <tr><th>Evaluation</th><th className="r">ROC-AUC</th><th className="r">Sensitivity</th><th className="r">Specificity</th></tr>
+          </thead>
+          <tbody>
+            <tr><td style={{ color: "var(--text-primary)" }}>XGBoost · one known patient (chb01)</td><td className="r mono">0.998</td><td className="r mono">94.3%</td><td className="r mono">99.5%</td></tr>
+            <tr><td style={{ color: "var(--text-primary)" }}>Ensemble · held-out windows (3,585)</td><td className="r mono">0.993</td><td className="r mono">92.3%</td><td className="r mono">97.6%</td></tr>
+            <tr><td style={{ color: "var(--text-primary)" }}>Ensemble · unseen patients (train chb01–10, test chb11–24)</td><td className="r mono">0.595</td><td className="r mono">5.7%</td><td className="r mono">98.1%</td></tr>
+          </tbody>
+        </table>
+        <div className="notice warn">
+          On patients it has never seen, V1 is barely better than chance. Generalising to new patients is the
+          central open problem and the reason for the APALA rebuild.
         </div>
       </Section>
 
-      <Section id="section-5" number="5" title="595 Features — What We Measure">
-        <p>From each 10-second window, we compute <strong>595 mathematical features</strong> that describe the shape, rhythm, complexity, and connectivity of the brainwaves. These features capture information invisible to the naked eye.</p>
-        {[
-          {
-            category: "Time-Domain Features (per channel)",
-            color: "#60a5fa",
-            features: [
-              ["Mean & Variance", "Average voltage level and how much it fluctuates"],
-              ["Skewness & Kurtosis", "Is the wave lopsided? Are there sharp spikes?"],
-              ["RMS (Root Mean Square)", "The overall energy / signal strength"],
-              ["Hjorth Activity", "Signal power — how strong is the brain activity?"],
-              ["Hjorth Mobility", "The dominant frequency — how fast are the waves?"],
-              ["Hjorth Complexity", "How much does the frequency change over time?"],
-            ],
-          },
-          {
-            category: "Frequency-Domain Features (Brainwave Bands)",
-            color: "#a78bfa",
-            features: [
-              ["Delta (0.5–4 Hz)", "Deep sleep rhythms — often elevated before focal seizures"],
-              ["Theta (4–8 Hz)", "Drowsiness and limbic system resonance"],
-              ["Alpha (8–13 Hz)", "Relaxed wakefulness — often suppressed before seizures"],
-              ["Beta (13–30 Hz)", "Active thinking — excited neurons fire in this range"],
-              ["Gamma (30–45 Hz)", "Rapid local synchrony — highly elevated just before seizure"],
-              ["Band Ratios (144)", "δ/α, θ/β, (δ+θ)/(α+β) — these ratios shift dramatically preictally"],
-            ],
-          },
-          {
-            category: "Non-Linear Dynamics (Chaos Theory)",
-            color: "#34d399",
-            features: [
-              ["Sample Entropy", "How irregular and unpredictable is the signal? (DROPS before seizures as the brain locks into synchrony)"],
-              ["Higuchi Fractal Dimension", "How geometrically complex is the wave? (High complexity = healthy brain)"],
-              ["Wavelet Energy (6 levels)", "Multi-scale frequency decomposition using db4 wavelets"],
-            ],
-          },
-          {
-            category: "Spatial Connectivity (Cross-Channel)",
-            color: "#fb923c",
-            features: [
-              ["Cross-Channel Coherence (32)", "How synchronized are distant brain regions? (Abnormal synchrony = warning sign)"],
-            ],
-          },
-        ].map(({ category, color, features }) => (
-          <div key={category} style={{ marginTop: 24, background: "var(--bg-panel)", border: "1px solid var(--border-subtle)", borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border-subtle)", fontWeight: 700, fontSize: 13, color, background: "rgba(255,255,255,0.02)" }}>{category}</div>
-            {features.map(([name, desc]) => (
-              <div key={name} style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 16, padding: "10px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{name}</span>
-                <span style={{ color: "var(--text-secondary)" }}>{desc}</span>
-              </div>
-            ))}
-          </div>
-        ))}
+      <Section id="limits" n={8} title="Limitations and next steps">
+        <ul style={{ paddingLeft: 18, listStyle: "disc" }}>
+          <li>The dashboard replays recorded data. Scores on patients the model was trained on are optimistic.</li>
+          <li>Window-level metrics do not equal clinical metrics such as false alarms per hour or warning time.</li>
+          <li>CHB-MIT is a paediatric cohort from a single centre.</li>
+          <li>This is a research prototype and must not be used for clinical decisions.</li>
+        </ul>
+        <p style={{ marginTop: 12 }}>
+          The APALA rebuild evaluates leave-one-patient-out across all 24 cases, keeps every preprocessing step
+          inside the training folds to prevent leakage, and tests a multi-scale CNN with squeeze-and-excitation
+          blocks and a KAN classification head against strong baselines.
+        </p>
       </Section>
-
-      <Section id="section-6" number="6" title="The AI Engine — How It Predicts">
-        <p>Our AI is a <strong>Stacked Ensemble</strong> — three expert models that each form an opinion, and a fourth "judge" model that combines their opinions into a final decision:</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, margin: "24px 0" }}>
-          {[
-            { name: "XGBoost", badge: "GPU (RTX 5080)", color: "#60a5fa", desc: "Extreme Gradient Boosting. Builds 500 decision trees sequentially, each correcting the errors of the last. Trained on CUDA for 10× speed." },
-            { name: "LightGBM", badge: "CPU Fast", color: "#a78bfa", desc: "Leaf-wise tree growth with histogram binning. Complements XGBoost by splitting data in a different geometric direction." },
-            { name: "Random Forest", badge: "CPU Parallel", color: "#34d399", desc: "200 fully independent decision trees trained on random data subsets. Provides a robust, uncorrelated third opinion." },
-            { name: "Logistic Regression", badge: "Meta-Learner", color: "#fb923c", desc: "The judge. Trained on the outputs of the above 3 models using Out-of-Fold cross-validation. Learns the optimal way to weight each model's vote." },
-          ].map(({ name, badge, color, desc }) => (
-            <div key={name} style={{ display: "flex", gap: 16, padding: "16px 20px", background: "var(--bg-panel)", border: "1px solid var(--border-subtle)", borderRadius: 10, alignItems: "flex-start" }}>
-              <div style={{ width: 3, background: color, borderRadius: 4, flexShrink: 0, alignSelf: "stretch" }} />
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontWeight: 700, color }}>{name}</span>
-                  <span style={{ fontSize: 10, padding: "2px 8px", background: `${color}18`, border: `1px solid ${color}40`, borderRadius: 99, color, fontWeight: 600 }}>{badge}</span>
-                </div>
-                <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <Callout icon="🔒" label="False Alarm Filter">
-          A single suspicious 10-second window does not trigger an alert. NeuroPulse uses a persistence filter: the risk score must exceed 60% for at least 3 consecutive windows (30 seconds of sustained warning) before an alert is raised. This eliminates noise and muscle artifacts.
-        </Callout>
-      </Section>
-
-      <Section id="section-7" number="7" title="The Dataset — 24 Real Patients">
-        <p>NeuroPulse was trained on the <strong>CHB-MIT Scalp EEG Database</strong> from Boston Children's Hospital / MIT — one of the gold-standard public datasets for epilepsy research, hosted on <a href="https://physionet.org/content/chbmit/1.0.0/" target="_blank" rel="noreferrer" style={{ color: "var(--accent-teal)" }}>PhysioNet</a>.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, margin: "20px 0" }}>
-          {[
-            ["24", "Pediatric Patients", "Ages 1.5–22"],
-            ["686", "EDF Recordings", "Each file = ~1 hour of EEG"],
-            ["198", "Seizures", "Spontaneous clinical events"],
-            ["347,075", "Feature Windows", "Each = 10 seconds of brain data"],
-            ["595", "Features per Window", "Extracted from raw EEG signal"],
-            ["256 Hz", "Sample Rate", "Millisecond-precision brainwave capture"],
-          ].map(([val, label, sub]) => (
-            <div key={label} style={{ background: "var(--bg-panel)", border: "1px solid var(--border-subtle)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--accent-teal)", fontFamily: "var(--font-mono)" }}>{val}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>{label}</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{sub}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section id="section-8" number="8" title="How Accurate Is It?">
-        <p>In epilepsy AI research, standard "accuracy" is misleading. Because &gt;95% of all EEG time is normal brain activity, a model that always says "No Seizure" would get 95% accuracy — while being completely useless. We use clinical metrics instead:</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "20px 0" }}>
-          {[
-            { metric: "Sensitivity (Recall)", value: "87–95%", color: "#22c55e", desc: "Out of all actual seizures, what % did we catch with advance warning?" },
-            { metric: "False Alarm Rate", value: "< 0.15–0.3/hr", color: "#60a5fa", desc: "How many false alerts per hour? Under 1 per 4 hours is clinically acceptable." },
-            { metric: "AUC-ROC", value: "0.90–0.99", color: "#a78bfa", desc: "Overall ability to separate preictal from interictal across all thresholds." },
-            { metric: "Warning Time", value: "15–45 min", color: "#fb923c", desc: "How far in advance do we predict a seizure before it starts?" },
-          ].map(({ metric, value, color, desc }) => (
-            <div key={metric} style={{ background: "var(--bg-panel)", border: "1px solid var(--border-subtle)", borderLeft: `3px solid ${color}`, borderRadius: 10, padding: "16px 18px" }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{metric}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color, marginBottom: 6, fontFamily: "var(--font-mono)" }}>{value}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>{desc}</div>
-            </div>
-          ))}
-        </div>
-        <Callout icon="📌" label="Patient-Specific vs. General">
-          Models trained on a patient&apos;s own historical EEG achieve 90–99% AUC. Models tested on completely new patients (like our 10-train/14-test split) achieve ~60% AUC — proving that every brain is different and patient-specific calibration dramatically improves real-world performance. The live dashboard streams each patient&apos;s OWN recorded data, so accuracy is high.
-        </Callout>
-      </Section>
-
     </div>
   );
 }
 
-function Section({ id, number, title, children }: { id: string; number: string; title: string; children: React.ReactNode }) {
+function Section({ id, n, title, children }: { id: string; n: number; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} style={{ marginBottom: 60 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-        <span style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(0,212,200,0.12)", border: "1px solid rgba(0,212,200,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "var(--accent-teal)", flexShrink: 0 }}>{number}</span>
-        <h2 style={{ margin: 0, fontSize: "clamp(18px, 3vw, 24px)", fontWeight: 700, letterSpacing: "-0.01em" }}>{title}</h2>
-      </div>
-      <div style={{ paddingLeft: 46, color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.85 }}>
+    <section id={id} style={{ marginBottom: 40, scrollMarginTop: 72 }}>
+      <h2 style={{ fontSize: 18, marginBottom: 12, display: "flex", gap: 12, alignItems: "baseline" }}>
+        <span className="mono" style={{ color: "var(--text-muted)", fontSize: 14 }}>{n}</span>
+        {title}
+      </h2>
+      <div style={{ color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.75, display: "grid", gap: 10 }}>
         {children}
       </div>
     </section>
   );
 }
 
-function Callout({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
+function KeyValue({ rows }: { rows: Array<[string, string]> }) {
   return (
-    <div style={{ display: "flex", gap: 14, background: "rgba(0,212,200,0.06)", border: "1px solid rgba(0,212,200,0.2)", borderRadius: 10, padding: "16px 20px", margin: "20px 0", alignItems: "flex-start" }}>
-      <span style={{ fontSize: 22, flexShrink: 0 }}>{icon}</span>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 12, color: "var(--accent-teal)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>{label}</div>
-        <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>{children}</div>
-      </div>
-    </div>
+    <table className="data-table" style={{ margin: "4px 0" }}>
+      <tbody>
+        {rows.map(([k, v]) => (
+          <tr key={k}>
+            <td style={{ width: 160, color: "var(--text-primary)", fontWeight: 500, verticalAlign: "top" }}>{k}</td>
+            <td>{v}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

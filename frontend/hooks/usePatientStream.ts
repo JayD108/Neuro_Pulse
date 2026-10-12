@@ -1,8 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { WS_BASE_URL } from "@/lib/constants";
+import { WS_BASE_URL, riskLevel, type RiskLevel } from "@/lib/constants";
+
+export interface TopFeature {
+  name: string;
+  value: number;
+  /** Feature importance x |z-score| for this window */
+  score?: number;
+}
 
 export interface TelemetryFrame {
   timestamp: number;
@@ -10,23 +16,28 @@ export interface TelemetryFrame {
   window_idx: number;
   window_start: number;
   window_end: number;
+  /** Smoothed risk (top-K mean over recent windows) */
   risk_score: number;
-  risk_score_raw: number;   // unsmoothed, for charts
+  /** Unsmoothed model output for this window */
+  risk_score_raw: number;
   soft_score: number;
   label_pred: number;
+  /** Annotated state from the dataset: 0 = interictal, 1 = pre-ictal */
   label_true: number | null;
+  /** True once the smoothed risk has stayed in the alert band for several windows */
   alert: boolean;
+  /** Relative power per band, averaged over channels (fractions of total power) */
   band_power: Record<string, number>;
-  top_features: Array<{ name: string; value: number }>;  // V1: replaces kan_splines
+  top_features: TopFeature[];
+  /** Per-channel deviation from the training baseline, 0–1 */
   channel_risk: Record<string, number>;
+  error?: string;
 }
 
 interface UsePatientStreamOptions {
   maxHistory?: number;
   onAlert?: (frame: TelemetryFrame) => void;
-  /** EMA smoothing factor 0–1. Lower = smoother. Default 0.25 */
-  emaAlpha?: number;
-  /** Number of consecutive windows required to change alert state. Default 3 */
+  /** Number of consecutive windows required to change the alert state. Default 3 */
   persistenceWindows?: number;
 }
 
@@ -38,22 +49,15 @@ interface UsePatientStreamReturn {
   reconnect: () => void;
 }
 
-function getRiskCategory(score: number): "clear" | "watch" | "alert" {
-  if (score >= 0.60) return "alert";
-  if (score >= 0.30) return "watch";
-  return "clear";
-}
+// Top-K soft fusion: mean of the K highest raw scores in the last N windows.
+const FUSION_WINDOW = 10;
+const FUSION_TOP_K  = 8;
 
 export function usePatientStream(
   patientId: string | null,
   options: UsePatientStreamOptions = {}
 ): UsePatientStreamReturn {
-  const {
-    maxHistory = 300,
-    onAlert,
-    emaAlpha = 0.25,
-    persistenceWindows = 3,
-  } = options;
+  const { maxHistory = 300, onAlert, persistenceWindows = 3 } = options;
 
   const [frame, setFrame]         = useState<TelemetryFrame | null>(null);
   const [history, setHistory]     = useState<TelemetryFrame[]>([]);
@@ -63,74 +67,62 @@ export function usePatientStream(
   const wsRef        = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef   = useRef(true);
+  const connectRef   = useRef<() => void>(() => {});
 
-  // Smoothing state (not React state — no re-render cost)
-  const emaRef          = useRef<number[] | null>(null);
-  const categoryBuf     = useRef<Array<"clear" | "watch" | "alert">>([]);
-  const confirmedCatRef = useRef<"clear" | "watch" | "alert">("clear");
+  // Smoothing state (refs: no re-render cost)
+  const bufferRef       = useRef<number[]>([]);
+  const levelBufRef     = useRef<RiskLevel[]>([]);
+  const confirmedRef    = useRef<RiskLevel>("normal");
 
   const connect = useCallback(() => {
     if (!patientId || !mountedRef.current) return;
+    if (reconnectRef.current) clearTimeout(reconnectRef.current);
     if (wsRef.current) wsRef.current.close();
 
-    // Reset smoothing on reconnect
-    emaRef.current      = null;
-    categoryBuf.current = [];
+    bufferRef.current   = [];
+    levelBufRef.current = [];
 
-    const url = `${WS_BASE_URL}/ws/${patientId}`;
-    const ws  = new WebSocket(url);
+    const ws = new WebSocket(`${WS_BASE_URL}/ws/${patientId}`);
     wsRef.current = ws;
 
+    // Events from a socket that has since been replaced are ignored; otherwise
+    // an old socket's close would trigger a reconnect that kills the new one.
+    const isCurrent = () => mountedRef.current && wsRef.current === ws;
+
     ws.onopen = () => {
-      if (!mountedRef.current) return;
+      if (!isCurrent()) return;
       setConnected(true);
       setError(null);
     };
 
     ws.onmessage = (event: MessageEvent) => {
-      if (!mountedRef.current) return;
+      if (!isCurrent()) return;
       try {
         const raw = JSON.parse(event.data as string);
-        const rawScore: number = raw.risk_score;
+        if (raw.error) setError(raw.error);
+        const rawScore: number = raw.risk_score ?? 0;
 
-        // --- Top-K Soft Fusion (Publication V2) ---
-        // 5-minute rolling buffer = 10 windows of 30s. We take the Top 8 highest probabilities and average them.
-        if (!emaRef.current) {
-          emaRef.current = []; // We will repurpose emaRef to hold the buffer
-        }
-        
-        const buffer = emaRef.current as number[];
+        const buffer = bufferRef.current;
         buffer.push(rawScore);
-        if (buffer.length > 10) {
-           buffer.shift();
-        }
-        
-        // Top-K Soft Mean (K=8)
+        if (buffer.length > FUSION_WINDOW) buffer.shift();
+
         let smoothed = rawScore;
-        if (buffer.length >= 8) {
-           const sorted = [...buffer].sort((a, b) => b - a);
-           const topK = sorted.slice(0, 8);
-           smoothed = topK.reduce((a, b) => a + b, 0) / topK.length;
+        if (buffer.length >= FUSION_TOP_K) {
+          const topK = [...buffer].sort((a, b) => b - a).slice(0, FUSION_TOP_K);
+          smoothed = topK.reduce((a, b) => a + b, 0) / topK.length;
         }
 
-        // --- Persistence filter on alert category ---
-        const newCat = getRiskCategory(smoothed);
-        categoryBuf.current.push(newCat);
-        if (categoryBuf.current.length > persistenceWindows) {
-          categoryBuf.current.shift();
-        }
-        // Only change confirmed category if all buffered windows agree
-        const allAgree = categoryBuf.current.every(c => c === newCat);
-        if (allAgree) {
-          confirmedCatRef.current = newCat;
-        }
+        // Persistence filter: the level only changes when all recent windows agree
+        const level = riskLevel(smoothed);
+        levelBufRef.current.push(level);
+        if (levelBufRef.current.length > persistenceWindows) levelBufRef.current.shift();
+        if (levelBufRef.current.every(l => l === level)) confirmedRef.current = level;
 
-        // Build the enriched frame the UI sees
         const data: TelemetryFrame = {
           ...raw,
           risk_score:     smoothed,
           risk_score_raw: rawScore,
-          alert:          confirmedCatRef.current === "alert",
+          alert:          confirmedRef.current === "alert",
         };
 
         setFrame(data);
@@ -145,19 +137,23 @@ export function usePatientStream(
     };
 
     ws.onerror = () => {
-      if (!mountedRef.current) return;
-      setError("WebSocket connection error");
+      if (!isCurrent()) return;
+      setError("Connection to the monitoring server failed");
       setConnected(false);
     };
 
     ws.onclose = () => {
-      if (!mountedRef.current) return;
+      if (!isCurrent()) return;
       setConnected(false);
       reconnectRef.current = setTimeout(() => {
-        if (mountedRef.current) connect();
+        if (mountedRef.current) connectRef.current();
       }, 3000);
     };
-  }, [patientId, maxHistory, onAlert, emaAlpha, persistenceWindows]);
+  }, [patientId, maxHistory, onAlert, persistenceWindows]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -165,7 +161,9 @@ export function usePatientStream(
     return () => {
       mountedRef.current = false;
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
-      if (wsRef.current) wsRef.current.close();
+      const ws = wsRef.current;
+      wsRef.current = null;
+      if (ws) ws.close();
     };
   }, [connect]);
 

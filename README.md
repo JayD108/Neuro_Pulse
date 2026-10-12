@@ -35,8 +35,8 @@ real-time backend and a dashboard. It also tells the story of why the project is
 | **Features** | 590 per window for an 18-channel recording, up to 1,365 |
 | **Ensemble** | XGBoost (500 trees, GPU) + LightGBM (500) + Random Forest (300) → Logistic Regression |
 | **Speed-ups** | Sample Entropy 695 ms → 4.4 ms per window with Numba (**158×**); all 686 files processed in ~40 min with 20 workers |
-| **Model** | 47.9 MB trained ensemble |
-| **Live system** | 6 API endpoints, WebSocket stream per patient, 4 dashboard pages, 3D brain view |
+| **Models** | 47.9 MB stacking ensemble (research); 180-feature XGBoost serving the live dashboard |
+| **Live system** | 6 API endpoints, WebSocket stream per patient, patient monitor, 10-20 electrode map, dataset and methods pages |
 
 ---
 
@@ -92,7 +92,7 @@ early, so that something can be done before the seizure begins.
 > The name is a cultural homage. Apālā is not documented as a physician or scientist, and whether she herself
 > composed Ṛgveda 8.91 cannot be established with certainty.
 
-The classical V1 system lives on in [`V1_Classical_ML/`](V1_Classical_ML) and powers the dashboard today.
+The classical V1 system lives on in [`V1_Classical_ML/`](V1_Classical_ML); its XGBoost model powers the dashboard today.
 
 ---
 
@@ -127,9 +127,14 @@ The classical V1 system lives on in [`V1_Classical_ML/`](V1_Classical_ML) and po
 
 You need **Python 3.10+** and **Node.js 18+**. An NVIDIA GPU is optional.
 
-**1. Get the model and data.** The trained model and the processed feature files (~4 GB) are too large for
-GitHub and live on Hugging Face: [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse). Place them in
-`V1_Classical_ML/models/` and `V1_Classical_ML/ml/data/processed/`.
+**1. Get the model and data.** They are too large for GitHub and live on Hugging Face:
+
+| What | Where | Put it in |
+|:---|:---|:---|
+| Model (`xgboost_model.pkl`, `scaler.pkl`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) → `models/` | `V1_Classical_ML/models/trained/` and `V1_Classical_ML/models/scalers/` |
+| Processed features (24 CSVs, ~4 GB) | [JayF14/chb-mit-preprocessed-eeg](https://huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg) | `V1_Classical_ML/ml/data/processed/` |
+
+You can start with a few patients' CSVs; the dashboard shows whichever are present.
 
 **2. Start the backend** from the repository root:
 
@@ -161,11 +166,13 @@ everything down.
    │  590–1,365 features: band powers, Hjorth, wavelets, Sample Entropy, fractal dimension, coherence
    ▼
 XGBoost (GPU) ─┐
-LightGBM      ─┼─►  Logistic Regression  ─►  risk score 0.0 – 1.0
+LightGBM      ─┼─►  Logistic Regression   research ensemble (all features)
 Random Forest ─┘
+
+XGBoost, 180 features  ─►  risk score 0.0 – 1.0  (served live)
    │
    ▼
-FastAPI WebSocket  ─►  Next.js dashboard (live EEG · 3D brain · risk over time)
+FastAPI WebSocket  ─►  Next.js dashboard (risk trend · electrode map · band power · features)
 ```
 
 **API**
@@ -176,7 +183,7 @@ FastAPI WebSocket  ─►  Next.js dashboard (live EEG · 3D brain · risk over 
 | GET | `/patients` | Lists patients with processed data |
 | GET | `/patient/{id}/info` | Windows, pre-ictal count and other stats for one patient |
 | GET | `/dataset/stats` | Totals for the Dataset page |
-| POST | `/predict` | One-off prediction from a feature set |
+| GET | `/model/reload` | Reloads the model files after retraining |
 | WS | `/ws/{patient_id}` | Live risk stream for one patient |
 
 ---
@@ -213,7 +220,7 @@ For every detail of the pipeline, the model and the results, read [`Docs/report.
 
 - **Data:** [CHB-MIT Scalp EEG Database](https://physionet.org/content/chbmit/1.0.0/), Boston Children's
   Hospital and MIT, hosted on PhysioNet.
-- **Model and processed data:** [huggingface.co/JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse).
+- **Model:** [huggingface.co/JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) · **processed data:** [huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg](https://huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg).
 - **The name:** Ṛgveda 8.91; Jaiminīya Brāhmaṇa 1.220–221; C. Spiers, *Agastya* (2025),
   doi:[10.35562/agastya.239](https://doi.org/10.35562/agastya.239); S. W. Jamison and J. P. Brereton,
   *The Rigveda* (Oxford University Press, 2014).

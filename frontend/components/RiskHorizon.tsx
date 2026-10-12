@@ -1,119 +1,56 @@
 "use client";
 
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine, CartesianGrid,
-  Area, AreaChart,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid,
+  ComposedChart, Line, Area,
 } from "recharts";
 import { TelemetryFrame } from "@/hooks/usePatientStream";
-import { ALERT_THRESHOLD, riskColor } from "@/lib/constants";
+import { ALERT_THRESHOLD, WATCH_THRESHOLD, formatClock } from "@/lib/constants";
 
 interface RiskHorizonProps {
   history: TelemetryFrame[];
 }
 
-interface CustomDotProps {
-  cx?: number;
-  cy?: number;
-  payload?: { alert: boolean };
-}
+const AXIS_TICK = { fill: "#6b7684", fontSize: 11, fontFamily: "IBM Plex Mono, monospace" };
 
-function CustomDot({ cx, cy, payload }: CustomDotProps) {
-  if (!payload?.alert || !cx || !cy) return null;
-  return (
-    <circle
-      cx={cx} cy={cy} r={4}
-      fill="#ef4444"
-      stroke="#ff6666"
-      strokeWidth={2}
-      style={{ filter: "drop-shadow(0 0 6px #ef4444)" }}
-    />
-  );
-}
-
+/**
+ * Smoothed and raw pre-ictal probability over the recent windows, with the
+ * dataset's annotated pre-ictal periods shaded for reference.
+ */
 export default function RiskHorizon({ history }: RiskHorizonProps) {
-  const data = history.slice(-300).map((f, i) => ({
-    i,
-    risk: parseFloat((f.risk_score * 100).toFixed(1)),
-    alert: f.alert,
+  const data = history.map(f => ({
+    t: f.window_start,
+    risk: +(f.risk_score * 100).toFixed(1),
+    raw: +((f.risk_score_raw ?? f.risk_score) * 100).toFixed(1),
+    preictal: f.label_true === 1 ? 100 : 0,
   }));
 
-  const latest   = data[data.length - 1]?.risk ?? 0;
-  const color    = riskColor(latest / 100);
+  if (data.length === 0) {
+    return <div className="panel-note" style={{ display: "grid", placeItems: "center", height: "100%" }}>Waiting for data…</div>;
+  }
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      {/* Live value overlay */}
-      <div style={{
-        position: "absolute", top: 8, right: 12,
-        fontWeight: 700, fontSize: "22px",
-        color,
-        textShadow: `0 0 12px ${color}`,
-        zIndex: 10,
-        fontFamily: "JetBrains Mono, monospace",
-      }}>
-        {latest.toFixed(1)}%
-      </div>
-
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 16, right: 16, left: -8, bottom: 4 }}>
-          <defs>
-            <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor={color} stopOpacity={0.35} />
-              <stop offset="95%" stopColor={color} stopOpacity={0.02} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(255,255,255,0.05)"
-            vertical={false}
-          />
-          <XAxis
-            dataKey="i"
-            hide
-          />
-          <YAxis
-            domain={[0, 100]}
-            ticks={[0, 20, 40, 60, 80, 100]}
-            tick={{ fill: "var(--text-muted)", fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            unit="%"
-          />
-          <Tooltip
-            contentStyle={{
-              background: "var(--bg-panel-solid)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: 8,
-              color: "var(--text-primary)",
-              fontSize: 12,
-            }}
-            formatter={(val: any) => [`${val}%`, "Seizure Risk"]}
-            labelFormatter={() => ""}
-          />
-          {/* 60% threshold line */}
-          <ReferenceLine
-            y={ALERT_THRESHOLD * 100}
-            stroke="rgba(239,68,68,0.55)"
-            strokeDasharray="6 3"
-            label={{
-              value: "Alert 60%",
-              position: "insideTopRight",
-              fill: "#ef4444",
-              fontSize: 10,
-            }}
-          />
-          <Area
-            type="monotoneX"
-            dataKey="risk"
-            stroke={color}
-            strokeWidth={2}
-            fill="url(#riskGrad)"
-            dot={<CustomDot />}
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+        <CartesianGrid stroke="#1f2731" vertical={false} />
+        <XAxis dataKey="t" tick={AXIS_TICK} tickFormatter={formatClock} axisLine={{ stroke: "#2b3542" }}
+               tickLine={false} minTickGap={60} />
+        <YAxis domain={[0, 100]} ticks={[0, 30, 60, 100]} tick={AXIS_TICK} axisLine={false} tickLine={false} unit="%" />
+        <Tooltip
+          contentStyle={{ background: "#161c24", border: "1px solid #2b3542", borderRadius: 6, fontSize: 12 }}
+          labelStyle={{ color: "#a3adbb" }}
+          labelFormatter={v => `t ${formatClock(Number(v))}`}
+          formatter={(val, name) => {
+            if (name === "preictal") return [Number(val) > 0 ? "yes" : "no", "Annotated pre-ictal"];
+            return [`${val}%`, name === "risk" ? "Risk (smoothed)" : "Window score"];
+          }}
+        />
+        <Area type="stepAfter" dataKey="preictal" fill="#e5534b" fillOpacity={0.08} stroke="none" isAnimationActive={false} />
+        <ReferenceLine y={ALERT_THRESHOLD * 100} stroke="#e5534b" strokeDasharray="4 4" strokeOpacity={0.7} />
+        <ReferenceLine y={WATCH_THRESHOLD * 100} stroke="#d9a441" strokeDasharray="4 4" strokeOpacity={0.5} />
+        <Line type="linear" dataKey="raw" stroke="#6b7684" strokeWidth={1} dot={false} isAnimationActive={false} />
+        <Line type="monotone" dataKey="risk" stroke="#5b9cf0" strokeWidth={2} dot={false} isAnimationActive={false} />
+      </ComposedChart>
+    </ResponsiveContainer>
   );
 }

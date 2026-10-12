@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import PatientCard from "@/components/PatientCard";
-import { API_BASE_URL } from "@/lib/constants";
+import { API_BASE_URL, RISK_LEVEL_INFO, ALERT_THRESHOLD, WATCH_THRESHOLD } from "@/lib/constants";
 
 export default function HomePage() {
   const [patients, setPatients] = useState<string[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
 
-  const fetchPatients = useCallback(() => {
+  const fetchPatients = useCallback((quiet = false) => {
     fetch(`${API_BASE_URL}/patients`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -21,154 +21,73 @@ export default function HomePage() {
         setLoading(false);
       })
       .catch(() => {
-        setError("Cannot reach backend at localhost:8000");
+        if (!quiet) setError(`Cannot reach the monitoring server at ${API_BASE_URL}`);
         setLoading(false);
       });
   }, []);
 
   useEffect(() => {
     fetchPatients();
-    // Auto-retry polling every 3 seconds if disconnected or error persists
-    const interval = setInterval(() => {
-      fetch(`${API_BASE_URL}/patients`)
-        .then(r => {
-          if (!r.ok) throw new Error();
-          return r.json();
-        })
-        .then(data => {
-          setPatients(data.patients ?? []);
-          setError(null);
-          setLoading(false);
-        })
-        .catch(() => {
-          // keep existing error state if still unreachable
-        });
-    }, 3000);
-
+    const interval = setInterval(() => fetchPatients(true), 5000);
     return () => clearInterval(interval);
   }, [fetchPatients]);
 
+  const legend = [
+    { ...RISK_LEVEL_INFO.normal, range: `< ${WATCH_THRESHOLD * 100}%` },
+    { ...RISK_LEVEL_INFO.watch,  range: `${WATCH_THRESHOLD * 100}–${ALERT_THRESHOLD * 100}%` },
+    { ...RISK_LEVEL_INFO.alert,  range: `≥ ${ALERT_THRESHOLD * 100}%, sustained 3 windows` },
+  ];
+
   return (
-    <div style={{ padding: "32px 28px" }}>
-
-      {/* Page Header — plain English */}
-      <div style={{ marginBottom: 36 }}>
-        <div className="section-label" style={{ marginBottom: 8, color: "var(--accent-teal)" }}>
-          Hospital Monitoring Room
+    <div className="page">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24, flexWrap: "wrap", marginBottom: 20 }}>
+        <div>
+          <div className="section-label" style={{ marginBottom: 6 }}>Epilepsy Monitoring Unit · Replay</div>
+          <h1 className="page-title" style={{ marginBottom: 8 }}>Patient Monitor</h1>
+          <p className="lead">
+            Recorded scalp EEG from the CHB-MIT database is replayed window by window (10 s each) through the
+            V1 model. Each card shows the probability that the patient is in the pre-ictal state, up to 30 minutes
+            before a seizure.
+          </p>
         </div>
-        <h1 className="display-font gradient-text" style={{ fontSize: "36px", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.02em" }}>
-          Active Patient Monitoring
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: 15, lineHeight: 1.7, maxWidth: 680 }}>
-          Real-time AI analysis of EEG brainwaves. Risk is estimated <strong style={{ color: "var(--text-primary)", fontWeight: 600 }}>every second</strong> predicting seizures up to 30 minutes in advance.
-        </p>
-      </div>
 
-      {/* How-it-works strip */}
-      <div className="glass-panel" style={{
-        display: "flex", gap: 0, marginBottom: 40,
-        borderRadius: "var(--radius)", overflow: "hidden",
-      }}>
-        {[
-          { step: "1", title: "Brain signals captured", desc: "EEG electrodes on the patient's scalp record brainwaves 256 times per second" },
-          { step: "2", title: "AI analyses patterns",    desc: "590 different features are extracted from each 10-second window of brain data" },
-          { step: "3", title: "Risk score calculated",   desc: "A 4-model AI ensemble produces a seizure probability score from 0% to 100%" },
-          { step: "4", title: "Alert if risk is high",   desc: "If the risk score crosses 60%, the card turns red and a warning is raised" },
-        ].map(({ step, title, desc }, i, arr) => (
-          <div key={step} className="hover-lift" style={{
-            flex: 1, padding: "20px 24px",
-            borderRight: i < arr.length - 1 ? "1px solid var(--border-subtle)" : "none",
-            background: "rgba(255, 255, 255, 0.01)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <span style={{
-                width: 24, height: 24, borderRadius: "50%",
-                background: "rgba(0,240,255,0.1)", border: "1px solid rgba(0,240,255,0.3)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, fontWeight: 700, color: "var(--accent-teal)", flexShrink: 0,
-                fontFamily: "var(--font-mono)",
-                boxShadow: "0 0 10px rgba(0, 240, 255, 0.1)"
-              }}>{step}</span>
-              <span className="display-font" style={{ fontWeight: 600, fontSize: 15, color: "var(--text-primary)" }}>{title}</span>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {legend.map(({ label, color, range }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+              <span className="status-dot" style={{ background: color }} />
+              <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{label}</span>
+              <span style={{ color: "var(--text-muted)" }}>{range}</span>
             </div>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>{desc}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Risk legend */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 32, alignItems: "center", flexWrap: "wrap" }}>
-        <span className="section-label" style={{ marginRight: 8 }}>Risk Guide:</span>
-        {[
-          { color: "var(--accent-green)", label: "0–30%",  desc: "Calm — no concern" },
-          { color: "var(--accent-amber)", label: "30–60%", desc: "Unusual activity — watch closely" },
-          { color: "var(--accent-red)",   label: "60%+",   desc: "Warning — possible seizure" },
-        ].map(({ color, label, desc }) => (
-          <div key={label} style={{
-            display: "flex", alignItems: "center", gap: 10,
-            background: "rgba(10, 15, 30, 0.5)", border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-sm)", padding: "8px 16px",
-            backdropFilter: "blur(12px)",
-          }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, display: "inline-block", boxShadow: `0 0 12px ${color}` }} />
-            <span className="display-font" style={{ fontSize: 14, fontWeight: 700, color }}>{label}</span>
-            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{desc}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* States */}
-      {loading && (
-        <div style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: 80, fontSize: 15 }}>
-          Connecting to monitoring system…
+          ))}
         </div>
-      )}
+      </div>
+
+      {loading && <div className="panel-note" style={{ padding: "48px 0", textAlign: "center" }}>Connecting to the monitoring server…</div>}
+
       {error && (
-        <div style={{
-          background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.35)",
-          borderRadius: 12, padding: "20px 24px", color: "#ef4444", maxWidth: 520,
-        }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Monitoring System Offline</div>
-          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>
-            {error}. Make sure the AI backend server is running.
+        <div className="notice error" style={{ maxWidth: 640, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+          <div>
+            <div style={{ color: "var(--text-primary)", fontWeight: 600, marginBottom: 2 }}>Monitoring server offline</div>
+            {error}. Start the backend (see README) and retry.
           </div>
-          <button
-            onClick={() => fetchPatients()}
-            style={{
-              background: "rgba(239,68,68,0.2)",
-              border: "1px solid rgba(239,68,68,0.5)",
-              color: "#fff",
-              padding: "6px 14px",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Retry Connection
-          </button>
-        </div>
-      )}
-      {!loading && !error && patients.length === 0 && (
-        <div style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: 80 }}>
-          No patients are currently being monitored.
+          <button className="btn" onClick={() => fetchPatients()}>Retry</button>
         </div>
       )}
 
-      {/* Patient Cards Grid */}
+      {!loading && !error && patients.length === 0 && (
+        <div className="notice warn" style={{ maxWidth: 640 }}>
+          No patient data found. Download the processed feature files into
+          <span className="mono"> V1_Classical_ML/ml/data/processed/</span> (see README).
+        </div>
+      )}
+
       {patients.length > 0 && (
         <>
-          <div className="section-label" style={{ marginBottom: 16, color: "var(--text-secondary)" }}>
-            {patients.length} Patient{patients.length !== 1 ? "s" : ""} Under Active Monitoring
+          <div className="section-label" style={{ margin: "8px 0 12px" }}>
+            {patients.length} patient{patients.length !== 1 ? "s" : ""}
           </div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-            gap: 16,
-          }}>
-            {patients.map(pid => (
-              <PatientCard key={pid} patientId={pid} />
-            ))}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+            {patients.map(pid => <PatientCard key={pid} patientId={pid} />)}
           </div>
         </>
       )}

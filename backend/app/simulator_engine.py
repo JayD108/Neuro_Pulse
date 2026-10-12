@@ -33,7 +33,7 @@ from backend.app.inference import ClassicalMLInferenceEngine
 
 PROCESSED_DIR       = os.path.join(_PROJECT_ROOT, "V1_Classical_ML", "ml", "data", "processed")
 STREAM_INTERVAL_SEC = 0.5   # seconds between frames
-ALERT_THRESHOLD     = 0.50  # risk_score threshold for alert flag
+ALERT_THRESHOLD     = 0.60  # matches the dashboard alert threshold (frontend smooths before alerting)
 
 NON_FEATURE_COLS = {
     "epoch_id", "window_start", "window_end",
@@ -42,15 +42,44 @@ NON_FEATURE_COLS = {
 }
 
 
-def _load_patient_csv(patient_id: str) -> Optional[pd.DataFrame]:
-    """Load the pre-processed labeled CSV for a patient."""
+# Patients' data are shared between WebSocket connections (the home page opens
+# one connection per patient), so each CSV is read at most once.
+_CSV_CACHE: Dict[str, pd.DataFrame] = {}
+
+
+def clear_csv_cache() -> None:
+    """Forget loaded CSVs (needed after a model reload changes the required columns)."""
+    _CSV_CACHE.clear()
+
+
+def _load_patient_csv(
+    patient_id: str, inference: Optional[ClassicalMLInferenceEngine] = None
+) -> Optional[pd.DataFrame]:
+    """
+    Load the pre-processed labeled CSV for a patient.
+
+    Only the metadata columns and the columns the model needs are read
+    (about 275 of ~595), which keeps memory use low.
+    """
+    if patient_id in _CSV_CACHE:
+        return _CSV_CACHE[patient_id]
+
     path = os.path.join(PROCESSED_DIR, f"{patient_id}_labeled_features.csv")
     if not os.path.exists(path):
         print(f"[Simulator] CSV not found: {path}")
         return None
-    df = pd.read_csv(path)
+
+    header = list(pd.read_csv(path, nrows=0).columns)
+    usecols = [c for c in header if c in NON_FEATURE_COLS]
+    if inference is not None:
+        usecols += inference.required_columns([c for c in header if c not in NON_FEATURE_COLS])
+    else:
+        usecols = header
+
+    df = pd.read_csv(path, usecols=usecols)
     # Keep only interictal (0) and preictal (1) rows
     df = df[df["target_label"].isin([0, 1])].reset_index(drop=True)
+    _CSV_CACHE[patient_id] = df
     return df
 
 
@@ -74,7 +103,7 @@ class SimulatorEngine:
 
     def _ensure_loaded(self) -> bool:
         if self._df is None:
-            self._df = _load_patient_csv(self.patient_id)
+            self._df = _load_patient_csv(self.patient_id, self.inference)
         return self._df is not None and len(self._df) > 0
 
     async def stream(self) -> AsyncIterator[Dict[str, Any]]:

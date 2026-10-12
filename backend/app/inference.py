@@ -124,6 +124,7 @@ class ClassicalMLInferenceEngine:
         self._scaler       = None
         self._feature_cols: List[str] = []
         self._importances: Optional[np.ndarray] = None
+        self._fill: Optional[np.ndarray] = None
         self._resolved: Dict[tuple, List[Optional[str]]] = {}
         self._ready        = False
         self._load()
@@ -157,6 +158,14 @@ class ClassicalMLInferenceEngine:
                 self._importances = imp / (imp.sum() or 1.0)
             else:
                 self._importances = None
+
+            # Missing or invalid inputs are filled with the training mean, so
+            # they scale to z = 0 and do not push the prediction either way.
+            mean = getattr(self._scaler, "mean_", None)
+            if mean is not None and len(mean) == len(self._feature_cols):
+                self._fill = np.asarray(mean, dtype=np.float64)
+            else:
+                self._fill = np.zeros(len(self._feature_cols), dtype=np.float64)
 
             self._resolved = {}
             self._ready = True
@@ -208,7 +217,7 @@ class ClassicalMLInferenceEngine:
         n_missing = sum(r is None for r in resolved)
         if n_missing:
             print(f"[InferenceEngine] WARNING: {n_missing}/{len(resolved)} model features "
-                  f"not found in the data; they will be filled with 0.")
+                  f"not found in the data; they will be filled with the training mean.")
         self._resolved = {key: resolved}
         return resolved
 
@@ -235,14 +244,18 @@ class ClassicalMLInferenceEngine:
     def _align_features(self, feature_dict: Dict[str, float]) -> np.ndarray:
         """
         Align a feature dictionary to the model's expected column order.
-        Features that cannot be found are filled with 0.0.
+
+        Features that are absent (e.g. channels missing from a patient's
+        montage) or not finite are filled with the training mean. A raw 0
+        would scale to an extreme z-score and bias the prediction.
         """
         resolved = self._resolve(feature_dict.keys())
-        row = np.zeros(len(self._feature_cols), dtype=np.float32)
+        row = self._fill.copy()
         for i, col in enumerate(resolved):
             if col is not None:
-                row[i] = feature_dict[col]
-        row = np.nan_to_num(row, nan=0.0, posinf=0.0, neginf=0.0)
+                v = feature_dict[col]
+                if np.isfinite(v):
+                    row[i] = v
         return row.reshape(1, -1)
 
     # ------------------------------------------------------------------

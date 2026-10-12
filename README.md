@@ -1,4 +1,4 @@
-<h1 align="center">APALA</h1>
+<h1 align="center">APALA(v1)</h1>
 
 <p align="center"><b>Patient-Independent Pre-Ictal EEG Detection</b><br>
 <sub>formerly <b>NeuroPulse</b></sub></p>

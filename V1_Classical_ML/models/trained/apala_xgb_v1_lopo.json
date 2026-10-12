@@ -1,0 +1,267 @@
+{
+  "summary": {
+    "mean_roc_auc": 0.5598,
+    "median_roc_auc": 0.5899,
+    "mean_pr_auc": 0.1142,
+    "median_pr_auc": 0.1051,
+    "mean_sensitivity": 0.2794,
+    "mean_specificity": 0.7774,
+    "total_windows": 347075,
+    "total_preictal": 22312,
+    "total_interictal": 324763,
+    "total_lopo_time_sec": 348.16,
+    "final_train_time_sec": 16.11
+  },
+  "model_settings": {
+    "n_estimators": 500,
+    "max_depth": 6,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "tree_method": "hist",
+    "device": "cuda",
+    "random_state": 42
+  },
+  "per_patient": [
+    {
+      "patient_id": "chb01",
+      "n_windows": 14338,
+      "n_preictal": 982,
+      "roc_auc": 0.2586,
+      "pr_auc": 0.0425,
+      "sensitivity": 0.0163,
+      "specificity": 0.7925,
+      "train_time_sec": 14.28
+    },
+    {
+      "patient_id": "chb02",
+      "n_windows": 12593,
+      "n_preictal": 371,
+      "roc_auc": 0.3867,
+      "pr_auc": 0.0224,
+      "sensitivity": 0.062,
+      "specificity": 0.872,
+      "train_time_sec": 13.28
+    },
+    {
+      "patient_id": "chb03",
+      "n_windows": 13425,
+      "n_preictal": 861,
+      "roc_auc": 0.3666,
+      "pr_auc": 0.0468,
+      "sensitivity": 0.0,
+      "specificity": 0.9979,
+      "train_time_sec": 14.68
+    },
+    {
+      "patient_id": "chb04",
+      "n_windows": 56014,
+      "n_preictal": 694,
+      "roc_auc": 0.4347,
+      "pr_auc": 0.0121,
+      "sensitivity": 0.0173,
+      "specificity": 0.9921,
+      "train_time_sec": 12.61
+    },
+    {
+      "patient_id": "chb05",
+      "n_windows": 13829,
+      "n_preictal": 686,
+      "roc_auc": 0.5844,
+      "pr_auc": 0.0954,
+      "sensitivity": 0.328,
+      "specificity": 0.8433,
+      "train_time_sec": 13.91
+    },
+    {
+      "patient_id": "chb06",
+      "n_windows": 23719,
+      "n_preictal": 1508,
+      "roc_auc": 0.6517,
+      "pr_auc": 0.089,
+      "sensitivity": 0.3269,
+      "specificity": 0.7862,
+      "train_time_sec": 13.37
+    },
+    {
+      "patient_id": "chb07",
+      "n_windows": 24012,
+      "n_preictal": 538,
+      "roc_auc": 0.4704,
+      "pr_auc": 0.0197,
+      "sensitivity": 0.0688,
+      "specificity": 0.888,
+      "train_time_sec": 14.41
+    },
+    {
+      "patient_id": "chb08",
+      "n_windows": 6955,
+      "n_preictal": 896,
+      "roc_auc": 0.7062,
+      "pr_auc": 0.1966,
+      "sensitivity": 0.471,
+      "specificity": 0.7326,
+      "train_time_sec": 12.93
+    },
+    {
+      "patient_id": "chb09",
+      "n_windows": 24279,
+      "n_preictal": 716,
+      "roc_auc": 0.4751,
+      "pr_auc": 0.0329,
+      "sensitivity": 0.176,
+      "specificity": 0.852,
+      "train_time_sec": 13.73
+    },
+    {
+      "patient_id": "chb10",
+      "n_windows": 17753,
+      "n_preictal": 1212,
+      "roc_auc": 0.6713,
+      "pr_auc": 0.1545,
+      "sensitivity": 0.0305,
+      "specificity": 0.9968,
+      "train_time_sec": 14.7
+    },
+    {
+      "patient_id": "chb11",
+      "n_windows": 12351,
+      "n_preictal": 353,
+      "roc_auc": 0.6427,
+      "pr_auc": 0.0404,
+      "sensitivity": 0.5722,
+      "specificity": 0.5948,
+      "train_time_sec": 14.67
+    },
+    {
+      "patient_id": "chb12",
+      "n_windows": 7422,
+      "n_preictal": 1814,
+      "roc_auc": 0.5356,
+      "pr_auc": 0.3281,
+      "sensitivity": 0.624,
+      "specificity": 0.3693,
+      "train_time_sec": 15.45
+    },
+    {
+      "patient_id": "chb13",
+      "n_windows": 11464,
+      "n_preictal": 1113,
+      "roc_auc": 0.61,
+      "pr_auc": 0.1425,
+      "sensitivity": 0.6846,
+      "specificity": 0.4481,
+      "train_time_sec": 15.39
+    },
+    {
+      "patient_id": "chb14",
+      "n_windows": 9096,
+      "n_preictal": 1246,
+      "roc_auc": 0.5219,
+      "pr_auc": 0.1467,
+      "sensitivity": 0.3443,
+      "specificity": 0.7011,
+      "train_time_sec": 15.51
+    },
+    {
+      "patient_id": "chb15",
+      "n_windows": 13630,
+      "n_preictal": 1750,
+      "roc_auc": 0.556,
+      "pr_auc": 0.1611,
+      "sensitivity": 0.004,
+      "specificity": 0.9991,
+      "train_time_sec": 15.07
+    },
+    {
+      "patient_id": "chb16",
+      "n_windows": 6526,
+      "n_preictal": 985,
+      "roc_auc": 0.4311,
+      "pr_auc": 0.1232,
+      "sensitivity": 0.3259,
+      "specificity": 0.5421,
+      "train_time_sec": 14.78
+    },
+    {
+      "patient_id": "chb17",
+      "n_windows": 7440,
+      "n_preictal": 537,
+      "roc_auc": 0.669,
+      "pr_auc": 0.1008,
+      "sensitivity": 0.1955,
+      "specificity": 0.8447,
+      "train_time_sec": 14.14
+    },
+    {
+      "patient_id": "chb18",
+      "n_windows": 12652,
+      "n_preictal": 816,
+      "roc_auc": 0.6742,
+      "pr_auc": 0.1095,
+      "sensitivity": 0.1299,
+      "specificity": 0.9413,
+      "train_time_sec": 15.59
+    },
+    {
+      "patient_id": "chb19",
+      "n_windows": 10678,
+      "n_preictal": 387,
+      "roc_auc": 0.6934,
+      "pr_auc": 0.1411,
+      "sensitivity": 0.4134,
+      "specificity": 0.8943,
+      "train_time_sec": 14.85
+    },
+    {
+      "patient_id": "chb20",
+      "n_windows": 9657,
+      "n_preictal": 856,
+      "roc_auc": 0.6729,
+      "pr_auc": 0.1977,
+      "sensitivity": 0.8633,
+      "specificity": 0.3054,
+      "train_time_sec": 16.77
+    },
+    {
+      "patient_id": "chb21",
+      "n_windows": 11674,
+      "n_preictal": 665,
+      "roc_auc": 0.6483,
+      "pr_auc": 0.08,
+      "sensitivity": 0.3714,
+      "specificity": 0.7583,
+      "train_time_sec": 14.94
+    },
+    {
+      "patient_id": "chb22",
+      "n_windows": 11060,
+      "n_preictal": 484,
+      "roc_auc": 0.68,
+      "pr_auc": 0.0794,
+      "sensitivity": 0.4814,
+      "specificity": 0.7626,
+      "train_time_sec": 15.2
+    },
+    {
+      "patient_id": "chb23",
+      "n_windows": 9299,
+      "n_preictal": 947,
+      "roc_auc": 0.5954,
+      "pr_auc": 0.132,
+      "sensitivity": 0.0148,
+      "specificity": 0.9921,
+      "train_time_sec": 12.78
+    },
+    {
+      "patient_id": "chb24",
+      "n_windows": 7209,
+      "n_preictal": 1895,
+      "roc_auc": 0.498,
+      "pr_auc": 0.2456,
+      "sensitivity": 0.1847,
+      "specificity": 0.7505,
+      "train_time_sec": 15.12
+    }
+  ]
+}

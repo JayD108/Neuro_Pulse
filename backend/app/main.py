@@ -37,7 +37,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -52,6 +52,17 @@ ws_manager = WebSocketManager()
 # ---------------------------------------------------------------------------
 # REST Endpoints
 # ---------------------------------------------------------------------------
+
+@app.get("/", tags=["system"])
+def root():
+    """Root endpoint — verifies NeuroPulse API is online."""
+    return {
+        "status": "ok",
+        "service": "NeuroPulse API",
+        "version": "1.0.0",
+        "model_loaded": inference.is_ready(),
+    }
+
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health():

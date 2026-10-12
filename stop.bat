@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 title NeuroPulse Shutdown
 echo ===================================================
 powershell -Command "Write-Host ' ____                  ____ _           _             ' -ForegroundColor Green"

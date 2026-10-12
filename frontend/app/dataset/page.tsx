@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface PatientStat {
@@ -25,9 +25,13 @@ export default function DatasetPage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
+    setLoading(true);
     fetch(`${API_BASE_URL}/patients`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(async data => {
         const ids: string[] = data.patients ?? [];
         const stats = await Promise.all(
@@ -50,10 +54,15 @@ export default function DatasetPage() {
           )
         );
         setPatients(stats);
+        setError(null);
         setLoading(false);
       })
       .catch(() => { setError("Cannot reach backend."); setLoading(false); });
   }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const totalWindows   = patients.reduce((s, p) => s + p.n_windows, 0);
   const totalPreictal  = patients.reduce((s, p) => s + p.n_preictal, 0);
@@ -116,8 +125,23 @@ export default function DatasetPage() {
           </div>
         )}
         {error && (
-          <div style={{ padding: "24px 22px", color: "#ef4444", fontSize: 13 }}>
-            {error} Make sure the backend is running at localhost:8000.
+          <div style={{ padding: "24px 22px", color: "#ef4444", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>{error} Make sure the backend is running at localhost:8000.</span>
+            <button
+              onClick={() => fetchStats()}
+              style={{
+                background: "rgba(239,68,68,0.2)",
+                border: "1px solid rgba(239,68,68,0.5)",
+                color: "#fff",
+                padding: "6px 14px",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Retry Connection
+            </button>
           </div>
         )}
 

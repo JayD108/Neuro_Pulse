@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import PatientCard from "@/components/PatientCard";
 import { API_BASE_URL } from "@/lib/constants";
 
@@ -9,12 +9,44 @@ export default function HomePage() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchPatients = useCallback(() => {
     fetch(`${API_BASE_URL}/patients`)
-      .then(r => r.json())
-      .then(data => { setPatients(data.patients ?? []); setLoading(false); })
-      .catch(() => { setError("Cannot reach backend at localhost:8000"); setLoading(false); });
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        setPatients(data.patients ?? []);
+        setError(null);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Cannot reach backend at localhost:8000");
+        setLoading(false);
+      });
   }, []);
+
+  useEffect(() => {
+    fetchPatients();
+    // Auto-retry polling every 3 seconds if disconnected or error persists
+    const interval = setInterval(() => {
+      fetch(`${API_BASE_URL}/patients`)
+        .then(r => {
+          if (!r.ok) throw new Error();
+          return r.json();
+        })
+        .then(data => {
+          setPatients(data.patients ?? []);
+          setError(null);
+          setLoading(false);
+        })
+        .catch(() => {
+          // keep existing error state if still unreachable
+        });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [fetchPatients]);
 
   return (
     <div style={{ padding: "32px 28px" }}>
@@ -97,9 +129,24 @@ export default function HomePage() {
           borderRadius: 12, padding: "20px 24px", color: "#ef4444", maxWidth: 520,
         }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Monitoring System Offline</div>
-          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>
             {error}. Make sure the AI backend server is running.
           </div>
+          <button
+            onClick={() => fetchPatients()}
+            style={{
+              background: "rgba(239,68,68,0.2)",
+              border: "1px solid rgba(239,68,68,0.5)",
+              color: "#fff",
+              padding: "6px 14px",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Retry Connection
+          </button>
         </div>
       )}
       {!loading && !error && patients.length === 0 && (

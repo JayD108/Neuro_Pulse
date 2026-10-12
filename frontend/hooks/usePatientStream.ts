@@ -6,8 +6,10 @@ import { WS_BASE_URL, riskLevel, type RiskLevel } from "@/lib/constants";
 export interface TopFeature {
   name: string;
   value: number;
-  /** Feature importance x |z-score| for this window */
+  /** Size of this feature's contribution to the window's score */
   score?: number;
+  /** "up" pushes towards pre-ictal, "down" away from it */
+  direction?: "up" | "down";
 }
 
 export interface TelemetryFrame {

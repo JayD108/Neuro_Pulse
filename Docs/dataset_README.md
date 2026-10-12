@@ -5,7 +5,7 @@ language:
 tags:
   - medical
   - eeg
-  - seizure-detection
+  - seizure-prediction
   - epilepsy
   - physionet
   - chb-mit
@@ -14,7 +14,7 @@ tags:
   - binary-classification
   - signal-processing
   - brain-computer-interface
-pretty_name: "CHB-MIT Preprocessed EEG Features for Seizure Detection"
+pretty_name: "CHB-MIT Preprocessed EEG Features for Seizure Forecasting (Pre-Ictal Detection)"
 size_categories:
   - 100K<n<1M
 task_categories:
@@ -28,7 +28,7 @@ configs:
 
 # CHB-MIT Preprocessed EEG Dataset
 
-### Feature-Engineered EEG Data for Epileptic Seizure Detection
+### Feature-Engineered EEG Data for Seizure Forecasting (Pre-Ictal Detection)
 
 [![Dataset on HF](https://img.shields.io/badge/Hugging%20Face-Dataset-blue?logo=huggingface)](https://huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg)
 [![License](https://img.shields.io/badge/License-ODC--By%201.0-blue)](https://opendatacommons.org/licenses/by/1.0/)
@@ -40,6 +40,9 @@ configs:
 *No raw signal processing needed. Download, load, and train.*
 
 </div>
+
+> **Research use only. Not for clinical decisions.**
+> Code: https://github.com/JayD108/Neuro_Pulse
 
 ---
 
@@ -62,13 +65,13 @@ configs:
 
 ## Overview
 
-This dataset provides **ready-to-use, feature-engineered EEG data** derived from the [CHB-MIT Scalp EEG Database v1.0.0](https://physionet.org/content/chbmit/1.0.0/) — one of the most widely cited benchmarks in epileptic seizure detection research.
+This dataset provides **ready-to-use, feature-engineered EEG data** derived from the [CHB-MIT Scalp EEG Database v1.0.0](https://physionet.org/content/chbmit/1.0.0/) — one of the most widely cited benchmarks in epileptic seizure forecasting research.
 
-The original CHB-MIT database contains continuous scalp EEG recordings from **22 pediatric subjects** (organized into **24 cases**) with medically intractable epilepsy, collected at Boston Children's Hospital (Shoeb, 2009). These raw EDF recordings have been fully preprocessed through a multi-stage feature extraction pipeline, producing a tabular dataset that is immediately usable for training classical ML and deep learning models.
+The original CHB-MIT database contains continuous scalp EEG recordings from **22 pediatric subjects** (organized into **24 cases**) with medically intractable epilepsy, collected at Boston Children\'s Hospital (Shoeb, 2009). These raw EDF recordings have been fully preprocessed through a multi-stage feature extraction pipeline, producing a tabular dataset that is immediately usable for training classical ML and deep learning models.
 
 > **This repository contains a derived/feature-engineered dataset**, not the original EEG recordings. The original CHB-MIT EEG recordings are distributed by PhysioNet under the Open Data Commons Attribution License v1.0. See the [License / Data Provenance](#license--data-provenance) section for details.
 
-This dataset was produced as part of the **[Neuro_Pulse](https://github.com/JayD108/Neuro_Pulse)** project — an end-to-end seizure detection system combining classical ML, deep learning, and a real-time monitoring interface.
+This dataset was produced as part of the **[Neuro_Pulse](https://github.com/JayD108/Neuro_Pulse)** project — an end-to-end seizure **forecasting** system combining classical ML, deep learning, and a real-time monitoring interface. The binary task is **interictal vs. pre-ictal** classification: predicting that a seizure will begin within the next 30 minutes.
 
 ### What makes this dataset useful?
 
@@ -76,7 +79,7 @@ This dataset was produced as part of the **[Neuro_Pulse](https://github.com/JayD
 - **Comprehensive feature set** — 590 features spanning frequency-domain, time-domain, wavelet, non-linear, and cross-channel coherence measures
 - **Seizure annotations** — seizure onset/offset annotations provided with the CHB-MIT database
 - **Full coverage** — all 24 CHB-MIT cases processed
-- **Validated** — zero NaN/Inf values, 100% file source traceability to original EDF files
+- **Traceable** — 100% file source traceability to original EDF files. Note: some features contain NaN or ±Inf (e.g. spectral ratios with near-zero denominators, or channels absent from a recording). Replace Inf with NaN and use a model that handles missing values natively, or impute before use.
 
 ---
 
@@ -86,8 +89,8 @@ This dataset was produced as part of the **[Neuro_Pulse](https://github.com/JayD
 |:---|:---|
 | **Cases / Subjects** | 24 cases from 22 pediatric subjects (`chb01`–`chb24`; note: `chb21` is an additional case from the same subject as `chb01`) |
 | **Total Epochs** | 347,075 |
-| **Seizure Epochs** | 22,312 (6.43%) |
-| **Non-Seizure Epochs** | 324,763 (93.57%) |
+| **Pre-ictal windows (label 1)** | 22,312 (6.43%) |
+| **Interictal windows (label 0)** | 324,763 (93.57%) |
 | **Columns (standard)** | 595 (5 metadata + 590 features) |
 | **Epoch Length** | 10 seconds, non-overlapping |
 | **EEG Channels** | 18 bipolar pairs (International 10-20 system) |
@@ -95,15 +98,15 @@ This dataset was produced as part of the **[Neuro_Pulse](https://github.com/JayD
 | **Notch Filter** | 60 Hz (US mains) |
 | **Sampling Rate** | 256 Hz (native CHB-MIT) |
 | **Total Size** | ~3.9 GB (24 CSV files) |
-| **Task** | Binary classification (seizure vs. non-seizure) |
-| **Label Column** | `target_label` — `0` = non-seizure, `1` = seizure |
+| **Task** | Binary classification: **interictal vs. pre-ictal** (seizure forecasting) |
+| **Label Column** | `target_label` — `0` = interictal (≥ 30 min from any seizure), `1` = pre-ictal (within 30 min before seizure onset), `2` = ictal or post-ictal (during a seizure or within 5 min after; excluded from training, so absent from the CSVs) |
 
 ---
 
 ## Per-Case Statistics
 
-| Case | File Size | Epochs | Seizure | Non-Seizure | Seizure % | EDF Files | Columns |
-|:--------|----------:|-------:|--------:|------------:|----------:|----------:|--------:|
+| Case | File Size | Epochs | Pre-ictal | Interictal | Pre-ictal % | EDF Files | Columns |
+|:--------|----------:|-------:|----------:|-----------:|------------:|----------:|--------:|
 | chb01 | 160.8 MB | 14,338 | 982 | 13,356 | 6.85% | 42 | 595 |
 | chb02 | 141.4 MB | 12,593 | 371 | 12,222 | 2.95% | 36 | 595 |
 | chb03 | 150.9 MB | 13,425 | 861 | 12,564 | 6.41% | 38 | 595 |
@@ -129,7 +132,7 @@ This dataset was produced as part of the **[Neuro_Pulse](https://github.com/JayD
 | chb23 | 104.4 MB | 9,299 | 947 | 8,352 | 10.18% | 9 | 595 |
 | chb24 | 80.9 MB | 7,209 | 1,895 | 5,314 | 26.29% | 22 | 595 |
 
-> **\*** Subjects `chb11`, `chb12`, `chb15`, and `chb18` have additional columns because the original CHB-MIT recordings for these patients include extra EEG channels beyond the standard 18-channel montage. Empty values in extra columns indicate features from channels not present in a given recording. When loading all subjects together, use `pandas.concat` with `join="outer"` or filter to the shared 595-column subset.
+> **\\*** Subjects `chb11`, `chb12`, `chb15`, and `chb18` have additional columns because the original CHB-MIT recordings for these patients include extra EEG channels beyond the standard 18-channel montage. Empty values in extra columns indicate features from channels not present in a given recording. When loading all subjects together, reindex every file to a fixed feature list (see [Important Notes](#important-notes)).
 
 ---
 
@@ -145,7 +148,7 @@ Each CSV file begins with **5 metadata columns**, followed by **590 feature colu
 | 2 | `window_start` | `float` | Start time of the epoch in seconds from recording onset |
 | 3 | `window_end` | `float` | End time of the epoch in seconds from recording onset |
 | 4 | `file_source` | `str` | Source EDF filename from the original CHB-MIT dataset (e.g., `chb01_03.edf`) |
-| 5 | `target_label` | `int` | Ground truth label: **0** = non-seizure, **1** = seizure |
+| 5 | `target_label` | `int` | Ground truth label: **0** = interictal (≥ 30 min from any seizure), **1** = pre-ictal (within 30 min before seizure onset), **2** = ictal/post-ictal (excluded; absent from these CSVs) |
 
 ### Feature Columns
 
@@ -182,7 +185,7 @@ The 23 per-channel signal features break down as:
 
 ### 1. Frequency-Domain Features (10 per channel)
 
-Computed via Welch's method across five standard EEG sub-bands:
+Computed via Welch\'s method across five standard EEG sub-bands:
 
 | Band | Frequency Range |
 |:-----|:----------------|
@@ -194,7 +197,7 @@ Computed via Welch's method across five standard EEG sub-bands:
 
 | Feature Suffix | Description |
 |:---------------|:------------|
-| `*_power` | Absolute band power (V^2/Hz, integrated via Simpson's rule) |
+| `*_power` | Absolute band power (V^2/Hz, integrated via Simpson\'s rule) |
 | `*_relpow` | Relative band power (fraction of total power in 0.5–50 Hz) |
 
 ### 2. Time-Domain Features (5 per channel)
@@ -277,7 +280,7 @@ ds = load_dataset(
 df = ds["train"].to_pandas()
 
 print(f"Shape: {df.shape}")
-print(f"Seizure ratio: {df['target_label'].mean():.2%}")
+print(f"Pre-ictal ratio: {df[\'target_label\'].mean():.2%}")
 ```
 
 ### Option 2 — Download specific files with `huggingface_hub`
@@ -299,7 +302,7 @@ df = pd.read_csv(path)
 ```python
 from huggingface_hub import snapshot_download
 import pandas as pd
-import os
+import os, numpy as np
 
 local_dir = snapshot_download(
     repo_id="JayF14/chb-mit-preprocessed-eeg",
@@ -307,25 +310,34 @@ local_dir = snapshot_download(
     local_dir="./chb_mit_data"
 )
 
-# Load and combine all subjects
+META = ["epoch_id", "window_start", "window_end", "file_source", "target_label"]
+
+# Build the reference feature list from chb01 (all 590 standard features)
+chb01 = pd.read_csv(os.path.join(local_dir, "chb01_labeled_features.csv"), nrows=0)
+feature_list = [c for c in chb01.columns if c not in META]
+
+# Load all patients, reindex to the same 590 columns (absent columns become NaN)
 dfs = []
 for i in range(1, 25):
     fpath = os.path.join(local_dir, f"chb{i:02d}_labeled_features.csv")
     if os.path.exists(fpath):
         df = pd.read_csv(fpath)
         df["subject_id"] = f"chb{i:02d}"
+        df = df.reindex(columns=META + ["subject_id"] + feature_list)
         dfs.append(df)
 
-full_df = pd.concat(dfs, ignore_index=True, join="inner")  # inner join to keep shared columns
+full_df = pd.concat(dfs, ignore_index=True)
 print(f"Combined shape: {full_df.shape}")
-print(f"Seizure distribution:\n{full_df['target_label'].value_counts()}")
+print(f"Label distribution:\\n{full_df[\'target_label\'].value_counts()}")
 ```
+
+> **Note:** `reindex` is used (not `join="inner"`) so all 590 standard columns are preserved. Patients `chb12`–`chb22`, which lack the 4 right-temporal channels, will have NaN in those 40 columns. `join="inner"` would silently drop those columns for all patients and produce only 550 features.
 
 ### Option 4 — Direct download via CLI
 
 ```bash
 # Single file
-curl -L -o chb01_labeled_features.csv \
+curl -L -o chb01_labeled_features.csv \\
   "https://huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg/resolve/main/chb01_labeled_features.csv"
 
 # All files (requires git-lfs)
@@ -337,31 +349,69 @@ git clone https://huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg
 
 ## Quick-Start Example
 
-Train a seizure detection classifier in under 20 lines:
+> **⚠️ Evaluation warning:** A random window-level split (e.g. `train_test_split`) leaks information between neighbouring windows from the same patient and yields inflated scores (often > 99% ROC-AUC). Always use a patient-wise split for meaningful evaluation. See the patient-wise example below.
+
+The example below uses a **leave-one-patient-out** split for clinically meaningful evaluation.
+Tested on chb01, chb08, chb12 with `n_splits=3` — runs without errors.
 
 ```python
-from huggingface_hub import hf_hub_download
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+from huggingface_hub import snapshot_download
+import pandas as pd, numpy as np
+from sklearn.model_selection import GroupKFold
+import xgboost as xgb
+from sklearn.metrics import roc_auc_score
+import os
 
-# 1. Load
-path = hf_hub_download("JayF14/chb-mit-preprocessed-eeg", "chb01_labeled_features.csv", repo_type="dataset")
-df = pd.read_csv(path)
+# 1. Download and load all patients
+local_dir = snapshot_download("JayF14/chb-mit-preprocessed-eeg", repo_type="dataset",
+                               local_dir="./chb_mit_data")
 
-# 2. Prepare
 META = ["epoch_id", "window_start", "window_end", "file_source", "target_label"]
-X, y = df.drop(columns=META), df["target_label"]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
-# 3. Train
-clf = RandomForestClassifier(n_estimators=200, class_weight="balanced", n_jobs=-1, random_state=42)
-clf.fit(X_train, y_train)
+# Build the reference feature list from chb01 (all 590 standard features)
+chb01 = pd.read_csv(os.path.join(local_dir, "chb01_labeled_features.csv"), nrows=0)
+feature_list = [c for c in chb01.columns if c not in META]
 
-# 4. Evaluate
-print(classification_report(y_test, clf.predict(X_test), target_names=["Non-Seizure", "Seizure"]))
+dfs = []
+for i in range(1, 25):
+    fpath = os.path.join(local_dir, f"chb{i:02d}_labeled_features.csv")
+    if os.path.exists(fpath):
+        df = pd.read_csv(fpath)
+        df["patient"] = f"chb{i:02d}"
+        # Reindex to fixed feature list — absent columns (e.g. right-temporal
+        # channels for chb12-chb22) become NaN; XGBoost handles them natively.
+        df = df.reindex(columns=META + ["patient"] + feature_list)
+        dfs.append(df)
+
+full = pd.concat(dfs, ignore_index=True)
+# Keep only pre-ictal (1) and interictal (0) rows
+full = full[full["target_label"].isin([0, 1])]
+
+# 2. Prepare — handle Inf/NaN
+X = full[feature_list].replace([np.inf, -np.inf], np.nan).values.astype(np.float32)
+y = full["target_label"].values
+groups = full["patient"].values
+
+# 3. Patient-wise leave-one-out evaluation
+gkf = GroupKFold(n_splits=len(full["patient"].unique()))
+aucs = []
+for train_idx, test_idx in gkf.split(X, y, groups=groups):
+    X_tr, X_te = X[train_idx], X[test_idx]
+    y_tr, y_te = y[train_idx], y[test_idx]
+    spw = float((y_tr == 0).sum()) / max(float((y_tr == 1).sum()), 1)
+    clf = xgb.XGBClassifier(n_estimators=500, max_depth=6, learning_rate=0.05,
+                             subsample=0.8, colsample_bytree=0.8,
+                             tree_method="hist", scale_pos_weight=spw, random_state=42)
+    clf.fit(X_tr, y_tr)
+    aucs.append(roc_auc_score(y_te, clf.predict_proba(X_te)[:, 1]))
+    print(f"Patient {groups[test_idx[0]]}: ROC-AUC = {aucs[-1]:.4f}")
+
+print(f"\\nMean ROC-AUC: {np.mean(aucs):.4f}  Median: {np.median(aucs):.4f}")
 ```
+
+**Reference result** (XGBoost, leave-one-patient-out, 24 patients, 500 trees, 590 features):
+- Mean ROC-AUC: **0.56**, Median: **0.59**, Range: 0.26–0.71
+- Full per-patient breakdown: [apala_xgb_v1_lopo.json](https://huggingface.co/JayF14/Neuro_Pulse/blob/main/models/trained/apala_xgb_v1_lopo.json)
 
 ---
 
@@ -393,7 +443,7 @@ Raw EDF  -->  Load (MNE-Python)  -->  Bandpass 0.5-50 Hz  -->  Notch 60 Hz
 | Bandpass filter | 4th-order Butterworth, 0.5–50 Hz (SOS) |
 | Notch filter | 60 Hz (US power line) |
 | Epoch window | 10 seconds, non-overlapping |
-| PSD method | Welch's method |
+| PSD method | Welch\'s method |
 | Wavelet | Daubechies-4 (`db4`), 5-level decomposition |
 | Entropy | Sample entropy (`m=2`) |
 | Fractal dimension | Higuchi FD |
@@ -410,33 +460,65 @@ This repository contains **feature-engineered representations** computed from th
 
 Users who need the raw EEG signals should obtain them directly from: https://physionet.org/content/chbmit/1.0.0/
 
+### Label Definitions
+
+| Label | Meaning | Count |
+|:-----:|:--------|------:|
+| `0` | **Interictal** — epoch starts ≥ 30 min from any seizure onset | 324,763 |
+| `1` | **Pre-ictal** — epoch starts within 30 min before a seizure onset | 22,312 |
+| `2` | **Ictal / post-ictal** — epoch overlaps a seizure or starts within 5 min after seizure end | excluded (not in CSVs) |
+
+Epochs labelled 2 are excluded from the CSV files; the binary task is **interictal vs. pre-ictal**.
+
+### Data Quality — NaN and Inf Values
+
+Some features contain NaN or ±Inf values. Common causes:
+- **Spectral ratios** (e.g. `*_theta_alpha_ratio`) can produce ±Inf when the denominator band power is near zero.
+- **Missing channels**: patients `chb12`–`chb22` lack the four right-temporal bipolar channels `FP2-F8`, `F8-T8`, `T8-P8` and `P8-O2` in most recordings (40 of the 590 standard features are absent for these 11 patients). Verified from CSV headers.
+- **Non-linear features** (sample entropy, Higuchi FD) may fail on near-flat segments.
+
+**Recommended handling:**
+```python
+import numpy as np
+X = X.replace([np.inf, -np.inf], np.nan)
+# Then either:
+#   A) Use a model that handles NaN natively (e.g. XGBoost with tree_method="hist")
+#   B) Impute: X = X.fillna(X.mean())
+```
+
+### Montage Differences Across Patients
+
+- Patients `chb12`–`chb22` (verified from CSV headers) are missing the right-temporal bipolar channels `FP2-F8`, `F8-T8`, `T8-P8` and `P8-O2` (40 features out of 590). These columns are simply absent from those CSVs.
+- Patients `chb11`, `chb12`, `chb15`, and `chb18` have *extra* non-standard channels beyond the 18-pair montage (see Columns column in Per-Case Statistics above).
+
+When combining patients, reindex every file to a fixed 590-feature list and treat absent columns as missing (NaN):
+
+```python
+FEATURE_COLS = [...]  # your reference 590-column list (e.g. from chb01)
+X = df.reindex(columns=FEATURE_COLS)   # absent columns become NaN automatically
+```
+
 ### Class Imbalance
 
-This dataset exhibits **severe class imbalance** (6.43% seizure overall). Some subjects have as little as 1.24% seizure epochs (chb04), while others reach 26.29% (chb24). Recommended strategies:
+This dataset exhibits **severe class imbalance** (6.43% pre-ictal overall). Some subjects have as little as 1.24% pre-ictal windows (chb04), while others reach 26.29% (chb24). Recommended strategies:
 
 | Strategy | Implementation |
 |:---------|:---------------|
-| Class weighting | `class_weight="balanced"` in sklearn classifiers |
+| Class weighting | `class_weight="balanced"` in sklearn classifiers, or `scale_pos_weight` in XGBoost |
 | Oversampling | SMOTE or ADASYN via `imbalanced-learn` |
 | Undersampling | `RandomUnderSampler` from `imbalanced-learn` |
 | Loss functions | Focal loss, weighted cross-entropy |
 | Evaluation | Use F1, AUROC, AUPRC — **not** accuracy |
 
-### Variable Column Counts
+### Leave-One-Patient-Out (LOPO) Evaluation
 
-Four subjects (`chb11`, `chb12`, `chb15`, `chb18`) have more than 595 columns because their original EEG recordings include additional channels. When combining subjects:
+> **⚠️ Random window splits inflate scores.** Because neighbouring 10-second windows are highly correlated, a random `train_test_split` across all windows leaks information and yields artificially high metrics (often > 99% ROC-AUC). For a fair, clinically meaningful estimate of generalisation to new patients, use **patient-level leave-one-out** cross-validation.
 
-```python
-# Option A: Keep only shared columns (safe)
-full_df = pd.concat(dfs, join="inner", ignore_index=True)
+For clinically meaningful evaluation, use patient-level leave-one-patient-out (LOPO) cross-validation rather than random splits. The case identifier in `file_source` can be mapped to the corresponding subject, with `chb01` and `chb21` grouped as the same subject.
 
-# Option B: Keep all columns, fill missing with NaN
-full_df = pd.concat(dfs, join="outer", ignore_index=True)
-```
-
-### Leave-One-Subject-Out (LOSO) Evaluation
-
-For clinically meaningful evaluation, use patient-level leave-one-subject-out (LOSO) cross-validation rather than random splits. The case identifier in `file_source` can be mapped to the corresponding subject, with `chb01` and `chb21` grouped as the same subject.
+**Reference result:** XGBoost (500 trees, 590 features), leave-one-patient-out across all 24 patients:
+- Mean ROC-AUC: **0.56**, Median: **0.59**, Range: 0.26–0.71
+- Full per-patient table: [apala_xgb_v1_lopo.json](https://huggingface.co/JayF14/Neuro_Pulse/blob/main/models/trained/apala_xgb_v1_lopo.json)
 
 ---
 
@@ -486,6 +568,7 @@ If you use this dataset in your research, please cite the original CHB-MIT datab
 |:---------|:-----|
 | Original CHB-MIT Database | [physionet.org/content/chbmit/1.0.0](https://physionet.org/content/chbmit/1.0.0/) |
 | Neuro_Pulse Project (source code) | [github.com/JayD108/Neuro_Pulse](https://github.com/JayD108/Neuro_Pulse) |
+| APALA Model (trained on all 24 patients) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) |
 | MNE-Python (EEG toolkit) | [mne.tools](https://mne.tools/) |
 | imbalanced-learn | [imbalanced-learn.org](https://imbalanced-learn.org/) |
 
@@ -495,7 +578,7 @@ If you use this dataset in your research, please cite the original CHB-MIT datab
 
 ### Source Data
 
-This dataset is a **processed and feature-engineered derivative** of the **CHB-MIT Scalp EEG Database v1.0.0**, originally collected at Boston Children's Hospital and distributed by PhysioNet.
+This dataset is a **processed and feature-engineered derivative** of the **CHB-MIT Scalp EEG Database v1.0.0**, originally collected at Boston Children\'s Hospital and distributed by PhysioNet.
 
 - **Original dataset:** CHB-MIT Scalp EEG Database v1.0.0
 - **PhysioNet page:** https://physionet.org/content/chbmit/1.0.0/

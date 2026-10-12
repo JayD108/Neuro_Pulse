@@ -8,8 +8,9 @@ interface FeatureContributionsProps {
 }
 
 /**
- * The features driving the current window's score: model feature
- * importance multiplied by how far the value is from the training mean.
+ * The features driving the current window's score, largest first.
+ * With the APALA model these are exact per-feature contributions;
+ * the arrow shows whether a feature pushes towards pre-ictal (↑) or away (↓).
  */
 export default function FeatureContributions({ features }: FeatureContributionsProps) {
   if (!features || features.length === 0) {
@@ -38,8 +39,13 @@ export default function FeatureContributions({ features }: FeatureContributionsP
               <td style={{ padding: "6px 8px" }}>{label}</td>
               <td style={{ padding: "6px 8px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span aria-label={f.direction === "down" ? "lowers risk" : "raises risk"}
+                        style={{ width: 10, color: f.direction === "down" ? "var(--text-muted)" : "var(--accent)" }}>
+                    {f.direction === "down" ? "↓" : "↑"}
+                  </span>
                   <div style={{ flex: 1, height: 6, background: "var(--border-subtle)", borderRadius: 3 }}>
-                    <div style={{ width: `${w}%`, height: "100%", background: "var(--accent)", borderRadius: 3 }} />
+                    <div style={{ width: `${w}%`, height: "100%", borderRadius: 3,
+                                  background: f.direction === "down" ? "var(--text-muted)" : "var(--accent)" }} />
                   </div>
                   <span className="mono" style={{ width: 34, textAlign: "right", color: "var(--text-muted)" }}>{w.toFixed(0)}</span>
                 </div>

@@ -10,6 +10,7 @@ interface PatientRow {
   n_preictal?: number;
   n_interictal?: number;
   n_ictal?: number;
+  lopo_auc?: number | null;
   error?: string;
 }
 
@@ -121,8 +122,8 @@ export default function DatasetPage() {
                 <th className="r">Windows</th>
                 <th className="r">Interictal</th>
                 <th className="r">Pre-ictal</th>
-                <th className="r">Seizure / post-ictal</th>
                 <th className="r">Imbalance</th>
+                <th className="r" title="ROC-AUC when this patient was left out of training">Held-out AUC</th>
               </tr>
             </thead>
             <tbody>
@@ -137,9 +138,11 @@ export default function DatasetPage() {
                   <td className="r">{p.n_windows?.toLocaleString() ?? "—"}</td>
                   <td className="r">{p.n_interictal?.toLocaleString() ?? "—"}</td>
                   <td className="r">{p.n_preictal?.toLocaleString() ?? "—"}</td>
-                  <td className="r">{p.n_ictal?.toLocaleString() ?? "—"}</td>
                   <td className="r">
                     {p.n_preictal ? `${((p.n_interictal ?? 0) / p.n_preictal).toFixed(1)} : 1` : "—"}
+                  </td>
+                  <td className="r mono" style={{ color: p.lopo_auc != null && p.lopo_auc < 0.5 ? "var(--status-watch)" : undefined }}>
+                    {p.lopo_auc != null ? p.lopo_auc.toFixed(2) : "—"}
                   </td>
                 </tr>
               ))}
@@ -147,7 +150,8 @@ export default function DatasetPage() {
           </table>
         )}
         <div className="panel-note" style={{ padding: "10px 16px", borderTop: "1px solid var(--border-subtle)" }}>
-          Imbalance = interictal ÷ pre-ictal windows. Seizure and post-ictal windows are excluded from training and replay.
+          Imbalance = interictal ÷ pre-ictal windows. Seizure and post-ictal windows were removed during preprocessing and are not in the files.
+          Held-out AUC = ROC-AUC on the patient when it was left out of training (leave-one-patient-out); below 0.5 is worse than chance.
         </div>
       </section>
 

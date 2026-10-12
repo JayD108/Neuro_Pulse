@@ -7,8 +7,9 @@ echo   Starting the research dashboard...
 echo ===================================================
 echo.
 
-:: Clear any stale processes holding port 8000
+:: Clear any stale processes holding ports 8000 or 3000
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000" ^| findstr "LISTENING"') do taskkill /F /PID %%a /T >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":3000" ^| findstr "LISTENING"') do taskkill /F /PID %%a /T >nul 2>&1
 
 echo [1/3] Starting AI Backend (FastAPI)...
 start "APALA Backend" cmd /k "cd /d "%~dp0" && python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"

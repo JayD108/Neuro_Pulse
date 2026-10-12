@@ -352,7 +352,7 @@ class ClassicalMLInferenceEngine:
         total = sum(raw.values())
         if total > 0:
             return {b: v / total for b, v in raw.items()}
-        return {b: 0.2 for b in _BAND_KEYS}
+        return {b: 0.0 for b in _BAND_KEYS}   # no band data in this window: show nothing, not a fake even split
 
     # ------------------------------------------------------------------
     # Per-feature contributions for this window

@@ -1,15 +1,17 @@
 """
-NeuroPulse — Classical ML Inference Engine (V1)
-=================================================
-Loads the trained V1 XGBoost model (xgboost_model.pkl, 180 features) and
-provides real-time risk predictions from pre-extracted CSV feature vectors.
+APALA — Classical ML Inference Engine (V1)
+==========================================
+Preferentially loads the APALA XGBoost model (apala_xgb_v1.json, 590 features,
+trained on all 24 patients) and provides real-time risk predictions from
+pre-extracted CSV feature vectors. Falls back to the original V1 XGBoost model
+(xgboost_model.pkl, 180 features, trained on chb01) if the APALA model is absent.
 
 Output schema per prediction:
     risk_score    : float [0.0–1.0] — preictal probability
     label_pred    : int   [0=Interictal, 1=Preictal]
     channel_risk  : Dict[channel_name -> float] — per-channel risk proxy
     band_power    : Dict[band_name -> float]    — average Welch band power
-    top_features  : List[{name, value, score}]  — top contributing features
+    top_features  : List[{name, value, score, direction}]  — top contributing features
 """
 from __future__ import annotations
 

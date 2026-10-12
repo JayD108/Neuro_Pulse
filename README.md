@@ -173,7 +173,7 @@ You need **Python 3.10+** and **Node.js 18+**. An NVIDIA GPU is optional.
 
 | What | Where | Put it in |
 |:---|:---|:---|
-| Model, all 24 patients (`apala_xgb_v1.json`, `apala_xgb_v1_features.json`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) | `V1_Classical_ML/models/trained/` |
+| Model, all 24 patients (`apala_xgb_v1.json`, `apala_xgb_v1_features.json`, `apala_xgb_v1_lopo.json`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) → `models/trained/` | `V1_Classical_ML/models/trained/` |
 | Original V1 model, used if the one above is absent (`xgboost_model.pkl`, `scaler.pkl`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) → `models/` | `V1_Classical_ML/models/trained/` and `V1_Classical_ML/models/scalers/` |
 | Processed features (24 CSVs, ~4 GB) | [JayF14/chb-mit-preprocessed-eeg](https://huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg) | `V1_Classical_ML/ml/data/processed/` |
 
@@ -212,7 +212,7 @@ XGBoost (GPU) ─┐
 LightGBM      ─┼─►  Logistic Regression   research ensemble (all features)
 Random Forest ─┘
 
-XGBoost, 180 features  ─►  risk score 0.0 – 1.0  (served live)
+XGBoost, 590 features, all 24 patients  ─►  risk score 0.0 – 1.0  (served live)
    │
    ▼
 FastAPI WebSocket  ─►  Next.js dashboard (risk trend · electrode map · band power · features)
@@ -254,6 +254,18 @@ place the `.edf` files in `V1_Classical_ML/ml/data/raw/` (e.g. `chb01/chb01_01.e
 cd V1_Classical_ML
 python -m ml.ingest_dataset --all --workers 20
 ```
+
+**Retraining the APALA dashboard model:** once the processed CSVs are in
+`V1_Classical_ML/ml/data/processed/`, run from the repository root:
+
+```bash
+python train_apala_lopo.py
+```
+
+This runs 24-fold leave-one-patient-out cross-validation (for per-patient AUC) then fits the
+final model on all 24 patients. It writes `apala_xgb_v1.json`, `apala_xgb_v1_features.json`
+and `apala_xgb_v1_lopo.json` to `V1_Classical_ML/models/trained/`. An NVIDIA GPU
+(CUDA-capable) is strongly recommended; training takes about 6 minutes.
 
 For every detail of the pipeline, the model and the results, read [`Docs/report.txt`](Docs/report.txt).
 

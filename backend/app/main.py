@@ -60,6 +60,7 @@ def root():
         "service": "APALA API",
         "version": "1.0.0",
         "model_loaded": inference.is_ready(),
+        "model": inference.model_name,
     }
 
 
@@ -124,7 +125,8 @@ def patient_info(patient_id: str):
         n_preictal=n_preictal,
         n_interictal=n_interictal,
         model_loaded=inference.is_ready(),
-        model_type="XGBoost (V1)",
+        model_type=inference.model_name,
+        lopo_auc=inference.lopo_auc.get(patient_id),
     )
 
 

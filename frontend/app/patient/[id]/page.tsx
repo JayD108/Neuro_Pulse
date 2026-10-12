@@ -15,6 +15,7 @@ interface PatientMeta {
   n_interictal: number;
   model_loaded: boolean;
   model_type: string;
+  lopo_auc?: number | null;
 }
 
 function Panel({ title, note, children, style }: {
@@ -80,6 +81,11 @@ export default function PatientPage({ params }: { params: Promise<{ id: string }
             <span>Windows <span className="mono" style={{ color: "var(--text-secondary)" }}>{meta.n_windows.toLocaleString()}</span></span>
             <span>Annotated pre-ictal <span className="mono" style={{ color: "var(--text-secondary)" }}>{meta.n_preictal.toLocaleString()}</span></span>
             <span>Model <span style={{ color: "var(--text-secondary)" }}>{meta.model_type}</span></span>
+            {meta.lopo_auc != null && (
+              <span title="ROC-AUC on this patient when it was left out of training (leave-one-patient-out)">
+                Held-out AUC <span className="mono" style={{ color: "var(--text-secondary)" }}>{meta.lopo_auc.toFixed(2)}</span>
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -132,7 +138,7 @@ export default function PatientPage({ params }: { params: Promise<{ id: string }
         <Panel title="Relative band power" note="mean over channels">
           <div style={{ height: 280 }}><BandPowerChart history={history} /></div>
         </Panel>
-        <Panel title="Contributing features" note="importance × deviation, this window">
+        <Panel title="Contributing features" note="this window · ↑ towards pre-ictal">
           <FeatureContributions features={frame?.top_features ?? []} />
         </Panel>
       </div>

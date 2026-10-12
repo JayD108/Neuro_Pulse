@@ -34,6 +34,7 @@ class PatientInfo(BaseModel):
     n_interictal: int
     model_loaded: bool
     model_type:   str = "XGBoost (V1)"
+    lopo_auc:     Optional[float] = None   # held-out ROC-AUC when this patient was left out of training
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +45,8 @@ class TopFeature(BaseModel):
     """A single high-magnitude feature for dashboard display."""
     name:  str   = Field(..., description="Feature name (e.g. 'FP1-F7_gamma_relative')")
     value: float = Field(..., description="Raw feature value for this window")
-    score: float = Field(0.0, description="Feature importance x |z-score| for this window")
+    score: float = Field(0.0, description="Size of this feature's contribution to the window's score")
+    direction: str = Field("up", description="'up' pushes towards pre-ictal, 'down' away from it")
 
 
 # ---------------------------------------------------------------------------

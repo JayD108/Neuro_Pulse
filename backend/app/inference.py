@@ -82,6 +82,16 @@ for _mod_name in ("ml.training.train_ensemble", "__main__"):
 # RandomForestClassifier which requires sklearn Cython DLLs that are blocked by
 # Windows Application Control on this machine.
 # ---------------------------------------------------------------------------
+_MODELS_DIR   = os.path.join(_PROJECT_ROOT, "V1_Classical_ML", "models")
+
+# Preferred: XGBoost trained on all 24 patients, saved in XGBoost's own JSON
+# format (no pickle, no scikit-learn needed to load it). Raw features, no scaler;
+# missing channels stay NaN, which XGBoost handles natively.
+_APALA_MODEL_PATH = os.path.join(_MODELS_DIR, "trained", "apala_xgb_v1.json")
+_APALA_NAMES_PATH = os.path.join(_MODELS_DIR, "trained", "apala_xgb_v1_features.json")
+_APALA_LOPO_PATH  = os.path.join(_MODELS_DIR, "trained", "apala_xgb_v1_lopo.json")
+
+# Fallback: the original V1 XGBoost (180 features, pickled, with a scaler).
 _MODEL_PATH   = os.path.join(_PROJECT_ROOT, "V1_Classical_ML", "models", "trained",  "xgboost_model.pkl")
 _SCALER_PATH  = os.path.join(_PROJECT_ROOT, "V1_Classical_ML", "models", "scalers",  "scaler.pkl")
 _NAMES_PATH   = os.path.join(_PROJECT_ROOT, "V1_Classical_ML", "models", "metadata", "feature_names.json")
@@ -125,6 +135,9 @@ class ClassicalMLInferenceEngine:
         self._feature_cols: List[str] = []
         self._importances: Optional[np.ndarray] = None
         self._fill: Optional[np.ndarray] = None
+        self._kind         = "none"      # "apala" | "legacy" | "none"
+        self.model_name    = "No model loaded"
+        self.lopo_auc: Dict[str, float] = {}
         self._resolved: Dict[tuple, List[Optional[str]]] = {}
         self._ready        = False
         self._load()
@@ -134,7 +147,43 @@ class ClassicalMLInferenceEngine:
     # ------------------------------------------------------------------
 
     def _load(self) -> None:
-        """Load model, scaler, and feature names from disk."""
+        """Load the APALA model if present, otherwise the original V1 model."""
+        self._ready = False
+        self._kind = "none"
+        self.model_name = "No model loaded"
+        self.lopo_auc = {}
+        self._resolved = {}
+        if os.path.exists(_APALA_MODEL_PATH) and os.path.exists(_APALA_NAMES_PATH):
+            try:
+                self._load_apala()
+                return
+            except Exception as exc:
+                print(f"[InferenceEngine] Could not load {_APALA_MODEL_PATH}: {exc}")
+                print("[InferenceEngine] Falling back to the original V1 model.")
+        self._load_legacy()
+
+    def _load_apala(self) -> None:
+        import xgboost as xgb
+
+        model = xgb.XGBClassifier()
+        model.load_model(_APALA_MODEL_PATH)
+        model.set_params(device="cpu")   # single-window inference: CPU is faster
+        with open(_APALA_NAMES_PATH) as f:
+            self._feature_cols = json.load(f)
+
+        self._model = model
+        self._scaler = None
+        self._importances = None
+        self._fill = np.full(len(self._feature_cols), np.nan, dtype=np.float64)
+        self.lopo_auc = _read_lopo_auc(_APALA_LOPO_PATH)
+        self._kind = "apala"
+        self.model_name = "XGBoost, 24 patients (APALA v1)"
+        self._ready = True
+        print(f"[InferenceEngine] APALA model loaded: {len(self._feature_cols)} features, "
+              f"held-out AUC for {len(self.lopo_auc)} patients.")
+
+    def _load_legacy(self) -> None:
+        """Load the original V1 model, scaler, and feature names from disk."""
         missing = [p for p in [_MODEL_PATH, _SCALER_PATH, _NAMES_PATH]
                    if not os.path.exists(p)]
         if missing:
@@ -168,6 +217,8 @@ class ClassicalMLInferenceEngine:
                 self._fill = np.zeros(len(self._feature_cols), dtype=np.float64)
 
             self._resolved = {}
+            self._kind = "legacy"
+            self.model_name = "XGBoost (V1)"
             self._ready = True
             print(f"[InferenceEngine] V1 Classical ML model loaded.")
             print(f"[InferenceEngine] Features: {len(self._feature_cols)}")
@@ -216,8 +267,10 @@ class ClassicalMLInferenceEngine:
 
         n_missing = sum(r is None for r in resolved)
         if n_missing:
+            how = ("left as missing (the model handles them)" if self._kind == "apala"
+                   else "filled with the training mean")
             print(f"[InferenceEngine] WARNING: {n_missing}/{len(resolved)} model features "
-                  f"not found in the data; they will be filled with the training mean.")
+                  f"not found in the data; they will be {how}.")
         self._resolved = {key: resolved}
         return resolved
 
@@ -250,7 +303,7 @@ class ClassicalMLInferenceEngine:
         would scale to an extreme z-score and bias the prediction.
         """
         resolved = self._resolve(feature_dict.keys())
-        row = self._fill.copy()
+        row = self._fill.copy()   # training mean (V1) or NaN = missing (APALA)
         for i, col in enumerate(resolved):
             if col is not None:
                 v = feature_dict[col]
@@ -280,51 +333,51 @@ class ClassicalMLInferenceEngine:
         return {b: (sums[b] / counts[b] if counts[b] else 0.0) for b in _BAND_KEYS}
 
     # ------------------------------------------------------------------
-    # Channel Risk Proxy
+    # Per-feature contributions for this window
     # ------------------------------------------------------------------
 
-    def _extract_channel_risk(self, X_s: np.ndarray) -> Dict[str, float]:
+    def _contributions(self, X_model: np.ndarray) -> np.ndarray:
         """
-        Per-channel deviation from the training baseline: the mean absolute
-        z-score of that channel's model features, weighted by feature
-        importance when available, normalised to 0-1.
+        How much each feature contributes to this window's score.
+
+        APALA model: XGBoost's exact per-feature contributions (SHAP values,
+        log-odds; positive pushes towards pre-ictal).
+        V1 model: feature importance x |z-score| (always >= 0).
         """
-        z = np.abs(X_s[0])
-        w = self._importances if self._importances is not None else np.ones_like(z)
+        if self._kind == "apala":
+            import xgboost as xgb
+            contribs = self._model.get_booster().predict(
+                xgb.DMatrix(X_model, missing=np.nan), pred_contribs=True)
+            return np.asarray(contribs[0, :-1], dtype=np.float64)   # last column = bias
+        z = np.abs(X_model[0]).astype(np.float64)
+        return z * self._importances if self._importances is not None else z
+
+    def _extract_channel_risk(self, contrib: np.ndarray) -> Dict[str, float]:
+        """Share of this window's evidence coming from each channel, 0-1 (max = 1)."""
+        mag = np.abs(contrib)
         channel_risk: Dict[str, float] = {}
         for ch in _CHANNEL_PREFIXES:
-            idx = [i for i, c in enumerate(self._feature_cols) if c.startswith(ch)]
-            if idx:
-                ww = w[idx]
-                channel_risk[ch] = float((z[idx] * ww).sum() / (ww.sum() or 1.0))
-            else:
-                channel_risk[ch] = 0.0
+            idx = [i for i, c in enumerate(self._feature_cols) if c.startswith(ch + "_") or c.startswith(ch + "-")]
+            channel_risk[ch] = float(mag[idx].sum()) if idx else 0.0
         max_v = max(channel_risk.values()) or 1.0
         return {ch: v / max_v for ch, v in channel_risk.items()}
 
-    # ------------------------------------------------------------------
-    # Top Feature Extraction
-    # ------------------------------------------------------------------
-
     def _top_features(
-        self, feature_dict: Dict[str, float], X_s: np.ndarray, n: int = 8
+        self, feature_dict: Dict[str, float], contrib: np.ndarray, n: int = 8
     ) -> List[Dict[str, Any]]:
-        """
-        The N features contributing most to this window: feature importance
-        times how far the value is from the training mean (|z-score|).
-        """
-        z = np.abs(X_s[0]).astype(np.float64)
-        score = z * self._importances if self._importances is not None else z
+        """The N features with the largest contribution to this window's score."""
         resolved = self._resolve(feature_dict.keys())
-        order = np.argsort(score)[::-1]
+        order = np.argsort(np.abs(contrib))[::-1]
         out: List[Dict[str, Any]] = []
         for i in order:
-            if score[i] <= 0 or resolved[i] is None:
+            if contrib[i] == 0 or resolved[i] is None:
                 continue
+            value = feature_dict[resolved[i]]
             out.append({
-                "name":  self._feature_cols[i],
-                "value": float(feature_dict[resolved[i]]),
-                "score": float(score[i]),
+                "name":      self._feature_cols[i],
+                "value":     float(value) if np.isfinite(value) else 0.0,
+                "score":     float(abs(contrib[i])),
+                "direction": "up" if contrib[i] > 0 or self._kind != "apala" else "down",
             })
             if len(out) == n:
                 break
@@ -357,18 +410,19 @@ class ClassicalMLInferenceEngine:
 
         try:
             X = self._align_features(feature_dict)
-            X_s = self._safe_scale(X)
+            X_model = X.astype(np.float32) if self._kind == "apala" else self._safe_scale(X)
 
-            prob_arr = self._model.predict_proba(X_s)  # (1, 2)
+            prob_arr = self._model.predict_proba(X_model)  # (1, 2)
             risk_score = float(prob_arr[0, 1])
             label_pred = int(risk_score >= RISK_THRESHOLD)
+            contrib = self._contributions(X_model)
 
             return {
                 "risk_score":   risk_score,
                 "label_pred":   label_pred,
-                "channel_risk": self._extract_channel_risk(X_s),
+                "channel_risk": self._extract_channel_risk(contrib),
                 "band_power":   self._extract_band_power(feature_dict),
-                "top_features": self._top_features(feature_dict, X_s),
+                "top_features": self._top_features(feature_dict, contrib),
             }
 
         except Exception as exc:
@@ -381,3 +435,39 @@ class ClassicalMLInferenceEngine:
                 "top_features": [],
                 "error": str(exc),
             }
+
+
+def _read_lopo_auc(path: str) -> Dict[str, float]:
+    """
+    Per-patient held-out ROC-AUC from the leave-one-patient-out results file.
+    Accepts a list of per-patient records or a {patient: metrics} mapping,
+    at the top level or under a key such as "per_patient" / "patients".
+    """
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except Exception as exc:
+        print(f"[InferenceEngine] Could not read {path}: {exc}")
+        return {}
+
+    if isinstance(data, dict):
+        for key in ("per_patient", "patients", "folds", "results"):
+            if key in data:
+                data = data[key]
+                break
+
+    out: Dict[str, float] = {}
+    if isinstance(data, dict):
+        for pid, m in data.items():
+            if isinstance(m, dict) and isinstance(m.get("roc_auc"), (int, float)):
+                out[str(pid)] = float(m["roc_auc"])
+    elif isinstance(data, list):
+        for m in data:
+            if not isinstance(m, dict):
+                continue
+            pid = m.get("patient_id") or m.get("patient") or m.get("test_patient")
+            if pid and isinstance(m.get("roc_auc"), (int, float)):
+                out[str(pid)] = float(m["roc_auc"])
+    return out

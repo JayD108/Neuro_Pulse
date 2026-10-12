@@ -173,7 +173,7 @@ You need **Python 3.10+** and **Node.js 18+**. An NVIDIA GPU is optional.
 
 | What | Where | Put it in |
 |:---|:---|:---|
-| Model, all 24 patients (`apala_xgb_v1.json`, `apala_xgb_v1_features.json`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) (upload pending) | `V1_Classical_ML/models/trained/` |
+| Model, all 24 patients (`apala_xgb_v1.json`, `apala_xgb_v1_features.json`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) | `V1_Classical_ML/models/trained/` |
 | Original V1 model, used if the one above is absent (`xgboost_model.pkl`, `scaler.pkl`) | [JayF14/Neuro_Pulse](https://huggingface.co/JayF14/Neuro_Pulse) → `models/` | `V1_Classical_ML/models/trained/` and `V1_Classical_ML/models/scalers/` |
 | Processed features (24 CSVs, ~4 GB) | [JayF14/chb-mit-preprocessed-eeg](https://huggingface.co/datasets/JayF14/chb-mit-preprocessed-eeg) | `V1_Classical_ML/ml/data/processed/` |
 

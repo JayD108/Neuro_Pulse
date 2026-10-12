@@ -92,28 +92,47 @@ def tree_index(booster, features):
     return t.set_index("ID")
 
 
+def count_leaves(tree_df, node):
+    n = tree_df.loc[node]
+    if n["Feature"] == "Leaf":
+        return 1
+    return count_leaves(tree_df, n["Yes"]) + count_leaves(tree_df, n["No"])
+
+
 def walk_tree(tree_df, tree_no, row, features):
-    """Print the path one window takes through one tree."""
+    """Draw one tree as a tree: every split shows both branches, the window's path is expanded."""
     node = f"{tree_no}-0"
-    depth = 0
+    pad = "      "
+    print(f"{pad}ROOT")
     while True:
         n = tree_df.loc[node]
         if n["Feature"] == "Leaf":
-            print(f"      {'  ' * depth}-> leaf value {n['Gain']:+.4f}")
+            print(f"{pad}  ■ LEAF  value {n['Gain']:+.4f}")
             return float(n["Gain"])
         value = row[features.index(n["Feature"])]
         if np.isnan(value):
-            nxt, why = n["Missing"], "value is MISSING -> learned default direction"
-        elif value < n["Split"]:
-            nxt, why = n["Yes"], "yes"
+            taken, shown = n["Missing"], "missing (goes the learned default way)"
         else:
-            nxt, why = n["No"], "no"
-        shown = "missing" if np.isnan(value) else f"{value:.4g}"
-        print(f"      {'  ' * depth}{n['Feature']} = {shown}  <  {n['Split']:.4g} ?  {why}")
-        node, depth = nxt, depth + 1
+            taken, shown = (n["Yes"] if value < n["Split"] else n["No"]), f"{value:.4g}"
+        print(f"{pad}  │")
+        print(f"{pad}  ┌─ {n['Feature']} < {n['Split']:.4g} ?   (this window: {shown})")
+        branches = [("yes", n["Yes"]), ("no ", n["No"])]
+        other = next(b for b in branches if b[1] != taken)
+        chosen = next(b for b in branches if b[1] == taken)
+        o = tree_df.loc[other[1]]
+        if o["Feature"] == "Leaf":
+            other_txt = f"leaf {o['Gain']:+.4f}"
+        else:
+            other_txt = f"branch with {count_leaves(tree_df, other[1])} leaves"
+        print(f"{pad}  ├── {other[0]} ──▶ ✗ not taken  ({other_txt})")
+        print(f"{pad}  └── {chosen[0]} ──▶ ✓ this window")
+        pad += "      "
+        node = taken
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")   # box-drawing characters on Windows
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--patient", default="chb01")
     ap.add_argument("--windows", type=int, nargs="*", help="row numbers to explain (default: 3 normal + 2 pre-ictal)")

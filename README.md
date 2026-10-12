@@ -144,7 +144,7 @@ trained on all 24 patients, and shows each patient's leave-one-patient-out score
   <tr>
     <td width="50%" valign="top" align="center">
       <img src="assets/patient_view.png" alt="Detailed patient view"><br>
-      <sub><b>Patient view:</b> live EEG, a 3D brain map and the features behind each prediction</sub>
+      <sub><b>Patient view:</b> live EEG risk trend, electrode map and the features behind each prediction</sub>
     </td>
     <td width="50%" valign="top" align="center">
       <img src="assets/how_it_works.png" alt="How it works guide"><br>

@@ -282,7 +282,7 @@ class ClassicalMLInferenceEngine:
     def required_columns(self, available) -> List[str]:
         """Columns of a feature CSV that inference and the dashboard need."""
         needed = {c for c in self._resolve(available) if c} if self._ready else set()
-        needed.update(c for c in available if _BAND_RELPOW_RE.match(c))
+        needed.update(c for c in available if "_relpow" in c)
         return [c for c in available if c in needed]
 
     # ------------------------------------------------------------------
@@ -324,9 +324,12 @@ class ClassicalMLInferenceEngine:
         self, feature_dict: Dict[str, float]
     ) -> Dict[str, float]:
         """
-        Relative power of each clinical band, averaged over channels.
-        Uses "{channel}_{Band}_relpow" columns, so the five values are
-        fractions of total power (comparable across patients).
+        Relative power of each clinical band, averaged over channels and
+        normalised so the five values sum to 1.0.
+
+        Prefers the 18 standard bipolar channels. If absent (e.g. non-standard
+        montages in early chb12 recordings), falls back to any available relative
+        power channels.
         """
         sums = {b: 0.0 for b in _BAND_KEYS}
         counts = {b: 0 for b in _BAND_KEYS}
@@ -335,7 +338,21 @@ class ClassicalMLInferenceEngine:
             if m and np.isfinite(v):
                 sums[m.group(2)] += v
                 counts[m.group(2)] += 1
-        return {b: (sums[b] / counts[b] if counts[b] else 0.0) for b in _BAND_KEYS}
+
+        if sum(counts.values()) == 0:
+            for k, v in feature_dict.items():
+                if "_relpow" in k and np.isfinite(v):
+                    for b in _BAND_KEYS:
+                        if f"_{b}_relpow" in k:
+                            sums[b] += v
+                            counts[b] += 1
+                            break
+
+        raw = {b: (sums[b] / counts[b] if counts[b] else 0.0) for b in _BAND_KEYS}
+        total = sum(raw.values())
+        if total > 0:
+            return {b: v / total for b, v in raw.items()}
+        return {b: 0.2 for b in _BAND_KEYS}
 
     # ------------------------------------------------------------------
     # Per-feature contributions for this window

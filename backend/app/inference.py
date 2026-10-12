@@ -103,8 +103,11 @@ RISK_THRESHOLD = 0.50
 # Clinical bands shown on the dashboard
 _BAND_KEYS = ("Delta", "Theta", "Alpha", "Beta", "Gamma")
 
-# "{channel}_{Band}_relpow", e.g. "FP1-F7_Delta_relpow" (hyphenated channel names only)
-_BAND_RELPOW_RE = re.compile(r"^[A-Z0-9]+-[A-Z0-9-]+_(Delta|Theta|Alpha|Beta|Gamma)_relpow$")
+# "{channel}_{Band}_relpow" for the 18 standard bipolar channels, e.g. "FP1-F7_Delta_relpow"
+# or "T8-P8-0_Delta_relpow". Non-standard channels (e.g. EKG1-CHIN, F7-CS2) are excluded.
+_BAND_RELPOW_RE = re.compile(
+    r"^(FP1-F7|F7-T7|T7-P7|P7-O1|FP1-F3|F3-C3|C3-P3|P3-O1|FP2-F4|F4-C4|C4-P4|P4-O2|"
+    r"FP2-F8|F8-T8|T8-P8(?:-\d+)?|P8-O2|FZ-CZ|CZ-PZ)_(Delta|Theta|Alpha|Beta|Gamma)_relpow$")
 
 # Older names used when the XGBoost model was trained: "FP1-F7_Delta" is now
 # "FP1-F7_Delta_power" in the processed CSVs.
@@ -330,8 +333,8 @@ class ClassicalMLInferenceEngine:
         for k, v in feature_dict.items():
             m = _BAND_RELPOW_RE.match(k)
             if m and np.isfinite(v):
-                sums[m.group(1)] += v
-                counts[m.group(1)] += 1
+                sums[m.group(2)] += v
+                counts[m.group(2)] += 1
         return {b: (sums[b] / counts[b] if counts[b] else 0.0) for b in _BAND_KEYS}
 
     # ------------------------------------------------------------------

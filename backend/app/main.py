@@ -16,6 +16,9 @@ WebSocket frame schema: see schemas.TelemetryFrame
 
 import os
 import glob
+import threading
+from contextlib import asynccontextmanager
+from typing import Dict, Tuple
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -27,10 +30,18 @@ from backend.app.websocket_manager import WebSocketManager
 # ---------------------------------------------------------------------------
 # App Initialization
 # ---------------------------------------------------------------------------
+@asynccontextmanager
+async def _lifespan(_app):
+    # Count each patient's labels in the background so /dataset/stats is instant.
+    threading.Thread(target=_warm_label_cache, daemon=True).start()
+    yield
+
+
 app = FastAPI(
     title="APALA API",
     description="Real-time EEG seizure prediction (V1 classical ML, XGBoost).",
     version="1.0.0",
+    lifespan=_lifespan,
 )
 
 app.add_middleware(
@@ -46,6 +57,48 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 inference  = ClassicalMLInferenceEngine()
 ws_manager = WebSocketManager()
+
+
+# ---------------------------------------------------------------------------
+# Label counts per patient, cached by file modification time. Reading the
+# label column of all 24 CSVs takes ~30 s, so it is done once in the
+# background at startup and then served from memory.
+# ---------------------------------------------------------------------------
+_LABEL_CACHE: Dict[str, Tuple[float, Dict[str, int]]] = {}
+_LABEL_LOCK = threading.Lock()
+
+
+def _label_counts(csv_path: str) -> Dict[str, int]:
+    mtime = os.path.getmtime(csv_path)
+    with _LABEL_LOCK:
+        hit = _LABEL_CACHE.get(csv_path)
+    if hit and hit[0] == mtime:
+        return hit[1]
+
+    import pandas as pd
+    labels = pd.read_csv(csv_path, usecols=["target_label"])["target_label"]
+    counts = {
+        "n_windows":    int(len(labels)),
+        "n_preictal":   int((labels == 1).sum()),
+        "n_interictal": int((labels == 0).sum()),
+    }
+    with _LABEL_LOCK:
+        _LABEL_CACHE[csv_path] = (mtime, counts)
+    return counts
+
+
+def _patient_csvs():
+    return sorted(glob.glob(os.path.join(PROCESSED_DIR, "*_labeled_features.csv")))
+
+
+def _warm_label_cache() -> None:
+    for path in _patient_csvs():
+        try:
+            _label_counts(path)
+        except Exception as exc:
+            print(f"[Stats] Could not read {path}: {exc}")
+    print(f"[Stats] Label counts cached for {len(_LABEL_CACHE)} patients.")
+
 
 
 # ---------------------------------------------------------------------------
@@ -93,18 +146,16 @@ def list_patients():
     """
     Return all patient IDs that have a processed feature CSV available.
     """
-    csvs = glob.glob(os.path.join(PROCESSED_DIR, "*_labeled_features.csv"))
-    patients = sorted([
+    patients = [
         os.path.basename(c).replace("_labeled_features.csv", "")
-        for c in csvs
-    ])
+        for c in _patient_csvs()
+    ]
     return {"patients": patients, "count": len(patients)}
 
 
 @app.get("/patient/{patient_id}/info", response_model=PatientInfo, tags=["data"])
 def patient_info(patient_id: str):
     """Return patient metadata from the processed CSV."""
-    import pandas as pd
     csv_path = os.path.join(PROCESSED_DIR, f"{patient_id}_labeled_features.csv")
     if not os.path.exists(csv_path):
         raise HTTPException(
@@ -113,17 +164,11 @@ def patient_info(patient_id: str):
                    f"Download it from the dataset on Hugging Face (see README)."
         )
 
-    # Read only the label column to count windows efficiently
-    df = pd.read_csv(csv_path, usecols=["target_label"])
-    n_windows     = len(df)
-    n_preictal    = int((df["target_label"] == 1).sum())
-    n_interictal  = int((df["target_label"] == 0).sum())
+    counts = _label_counts(csv_path)
 
     return PatientInfo(
         patient_id=patient_id,
-        n_windows=n_windows,
-        n_preictal=n_preictal,
-        n_interictal=n_interictal,
+        **counts,
         model_loaded=inference.is_ready(),
         model_type=inference.model_name,
         lopo_auc=inference.lopo_auc.get(patient_id),
@@ -132,24 +177,19 @@ def patient_info(patient_id: str):
 
 @app.get("/dataset/stats", tags=["data"])
 def dataset_stats():
-    """Aggregate window and seizure stats for all 24 patients."""
-    import pandas as pd
-    csvs = glob.glob(os.path.join(PROCESSED_DIR, "*_labeled_features.csv"))
+    """Aggregate window stats for all patients (served from the label cache)."""
+    csvs = _patient_csvs()
     if not csvs:
         return {"error": "No processed CSVs found.", "patients": []}
 
     rows = []
-    for csv_path in sorted(csvs):
+    for csv_path in csvs:
         pid = os.path.basename(csv_path).replace("_labeled_features.csv", "")
         try:
-            df = pd.read_csv(csv_path, usecols=["target_label"])
             rows.append({
-                "patient_id":   pid,
-                "n_windows":    len(df),
-                "n_preictal":   int((df["target_label"] == 1).sum()),
-                "n_interictal": int((df["target_label"] == 0).sum()),
-                "n_ictal":      int((df["target_label"] == 2).sum()),
-                "lopo_auc":     inference.lopo_auc.get(pid),
+                "patient_id": pid,
+                **_label_counts(csv_path),
+                "lopo_auc":   inference.lopo_auc.get(pid),
             })
         except Exception as e:
             rows.append({"patient_id": pid, "error": str(e)})

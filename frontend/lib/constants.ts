@@ -74,13 +74,23 @@ const FEATURE_LABELS: Array<[RegExp, string]> = [
   [/^sample_entropy$/,    "Sample entropy"],
   [/^higuchi_fd$/,        "Higuchi fractal dimension"],
   [/^wt_([AD]\d)_energy$/, "Wavelet $1 energy"],
+  [/^theta_alpha_ratio$/, "Theta/alpha ratio"],
+  [/^slow_fast_ratio$/,   "Slow/fast ratio"],
+  [/^beta_alpha_ratio$/,  "Beta/alpha ratio"],
 ];
 
 /** "FP1-F7_hjorth_mobility" -> { channel: "FP1-F7", label: "Hjorth mobility" } */
 export function describeFeature(name: string): { channel: string; label: string } {
-  const m = name.match(/^([A-Z0-9]+-[A-Z0-9]+)(?:-\d+)?_(.+)$/);
-  if (!m) return { channel: "", label: name };
-  const [, channel, suffix] = m;
+  // Channel names appear as "FP1-F7" and, in the ratio columns, as "FP1_F7".
+  const coh = name.match(/^coh_([A-Z0-9]+)_([A-Z0-9]+)_([A-Z0-9]+)_([A-Z0-9]+)_(delta|theta|alpha|beta)$/);
+  if (coh) {
+    const band = coh[5].charAt(0).toUpperCase() + coh[5].slice(1);
+    return { channel: `${coh[1]}-${coh[2]} ↔ ${coh[3]}-${coh[4]}`, label: `${band} coherence` };
+  }
+  const m = name.match(/^([A-Z0-9]+[-_][A-Z0-9]+)(?:[-_]\d+)?_(.+)$/);
+  if (!m) return { channel: "", label: name.replace(/_/g, " ") };
+  const channel = m[1].replace("_", "-");
+  const suffix = m[2];
   for (const [re, label] of FEATURE_LABELS) {
     if (re.test(suffix)) return { channel, label: suffix.replace(re, label) };
   }
